@@ -1,0 +1,71 @@
+[project]
+authors = [{ name = "zeptofine", email = "xpsychonauticonx@gmail.com" }]
+dependencies = [
+    "pyside6>=6.6.2",
+    "yt-dlp>=2023.12.30",
+    "requests>=2.31.0",
+    "pillow>=10.2.0",
+]
+description = "Default template for PDM package"
+license = { text = "MIT" }
+name = "ytm-qt"
+readme = "README.md"
+requires-python = "<3.13, >=3.12"
+version = "0.1.0"
+
+[project.scripts]
+ytm-qt = "ytm_qt:__main__.main"
+
+[build-system]
+build-backend = "pdm.backend"
+requires = ["pdm-backend"]
+
+[tool.pdm]
+distribution = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-ignore = [
+  "F401",
+  "E501",
+  "B905",
+  "SIM114",
+  "A003",
+  "SIM108",
+  "ISC001",
+  "W293",
+]
+extend-select = [
+  "A",       # flake8-builtins
+  "ASYNC",   # flake8-async
+  "UP",      # pyupgrade
+  "I",       # isort
+  "B",       # flake8-bugbear
+  "ICN",     # flake8-import-conventions
+  "F",       # pyflakes
+  "RET",     # flake8-return
+  "SIM",     # flake8-simplify
+  "NPY",     # NumPy-specific rules
+  "PERF",    # perflint
+  "RUF",     # Ruff-specific rules
+  "PIE",     # flake8-pie
+  "DTZ",     # flake8-datetimez
+  "C4",      # flake8-comprehensions
+  "E",       # Error
+  "EXE",     # flake8-executable
+  "TCH",     # flake8-type-checking
+  "W",       # pycodestyle
+  "FA",      # flake8-future-annotations
+  "ISC",     # flake8-implicit-str-concat
+  "Q",       # flake8-quotes
+  "SLF",     # flake8-self  #Specific pylint rules  # "PL", # Pylint
+  "PLR1711", # useless-return
+  "PLR1714", # repeated-equality-comparison
+]
+fixable = ["ALL"]
+
+[tool.isort]
+profile = "black"
