@@ -5,6 +5,10 @@ dependencies = [
     "yt-dlp>=2023.12.30",
     "requests>=2.31.0",
     "pillow>=10.2.0",
+    "materialyoucolor>=2.0.7",
+    "validators>=0.22.0",
+    "python-appimage>=1.2.5",
+    "setuptools>=69.1.1",
 ]
 description = "Default template for PDM package"
 license = { text = "MIT" }
@@ -56,7 +60,6 @@ extend-select = [
   "C4",      # flake8-comprehensions
   "E",       # Error
   "EXE",     # flake8-executable
-  "TCH",     # flake8-type-checking
   "W",       # pycodestyle
   "FA",      # flake8-future-annotations
   "ISC",     # flake8-implicit-str-concat

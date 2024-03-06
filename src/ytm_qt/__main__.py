@@ -1,0 +1,232 @@
+import contextlib
+import sys
+from pathlib import Path
+from queue import Queue
+
+from PySide6.QtCore import (
+    Qt,
+    QThreadPool,
+    QUrl,
+    Slot,
+)
+from PySide6.QtGui import QCloseEvent
+from PySide6.QtWidgets import (
+    QApplication,
+    QDockWidget,
+    QMainWindow,
+    QWidget,
+)
+
+from .cache_handlers import CacheHandler
+from .dicts import (
+    YTMDownloadResponse,
+    YTMPlaylistResponse,
+    YTMResponse,
+    YTMSearchResponse,
+    YTMSmallVideoResponse,
+    YTMVideoResponse,
+)
+from .enums import ResponseTypes
+from .fonts import Fonts
+from .header import Header
+from .icons import Icons
+from .player import PlayerDock
+from .playlist_dock import PlaylistDock
+from .playlist_generators.op_wrapper import OperationWrapper
+from .playlists.playlist_view import PlaylistView
+from .playlists.queue_view import QueueView
+from .song_view import SongView
+from .song_widget import SongWidget
+from .threads.download_icons import DownloadIconProvider
+from .threads.ytdlrunner import YoutubeDLProvider, YTDLUser, YTMDownload, YTMExtractInfo
+
+URL = r"https://music.youtube.com/playlist?list=PLu_TDFCG1ZjxzrBAAULOOQrr-6sgf4da8"
+
+# video:    https://music.youtube.com/watch?v=zfa9l2GYkRI&si=zVWB-BVlzl9K8USd
+# playlist: https://music.youtube.com/playlist?list=PLu_TDFCG1ZjxzrBAAULOOQrr-6sgf4da8
+# search:   https://music.youtube.com/search?q=hurry+hurry
+
+
+opts = {
+    "check_formats": "selected",
+    "extract_flat": "discard_in_playlist",
+    "format": "bestaudio/best",
+    "fragment_retries": 10,
+    "ignoreerrors": "only_download",
+    "outtmpl": {"default": "cache/%(id)s"},
+    "postprocessors": [
+        {
+            "key": "FFmpegExtractAudio",
+            "preferredquality": "5",
+        },
+        {
+            "key": "FFmpegConcat",
+            "only_multi_video": True,
+            "when": "playlist",
+        },
+    ],
+    "retries": 10,
+}
+
+
+class MainWindow(QMainWindow):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("ytm-qt")
+        self.resize(1200, 800)
+
+        self.icons = Icons.get()
+        self.fonts = Fonts.get()
+
+        self.header = Header(self)
+        self.header.searched.connect(self.extract_url)
+        self.setMenuWidget(self.header)
+
+        self.cache_dir = Path("cache")
+        self.cache = CacheHandler(self.cache_dir)
+        self.cache.load()
+
+        self.ytdlp_queue: Queue[YTDLUser] = Queue()
+        self.ytdlp_thread = YoutubeDLProvider(opts, self.ytdlp_queue)
+        self.ytdlp_thread.start()
+
+        self.icon_download_queue = Queue()
+        self.icon_threadpool = QThreadPool(self)
+        self.icon_providers = [DownloadIconProvider(self.icon_download_queue) for _ in range(4)]
+        for provider in self.icon_providers:
+            self.icon_threadpool.start(provider)
+
+        infotask = YTMExtractInfo(URL)
+        infotask.processed.connect(self.info_extracted)
+        self.ytdlp_queue.put(infotask)
+
+        # self.play_queue_view = QueueView(self)
+        # self.play_queue_view.set_cache_handler(self.cache)
+        # self.play_queue = PlaylistDock(cache_handler=self.cache, playlist=self.play_queue_view, parent=self)
+        # self.play_queue.request_new_icon.connect(self.icon_download_queue.put)
+
+        # self.play_queue.list.play_clicked.connect(self.queue_item_clicked)
+        # self.play_queue.setWindowTitle("Playing view")
+        self.play_queue_op = OperationWrapper(self.icons, parent=self)
+        self.play_queue_op.set_cache_handler(self.cache)
+        self.play_queue_dock = QDockWidget()
+        self.play_queue_dock.setWidget(self.play_queue_op)
+        self.play_queue_dock.setMinimumWidth(400)
+        self.play_queue_dock.setAllowedAreas(
+            Qt.DockWidgetArea.NoDockWidgetArea
+            | Qt.DockWidgetArea.LeftDockWidgetArea
+            | Qt.DockWidgetArea.RightDockWidgetArea
+        )
+
+        # self.play_queue_op
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.play_queue_dock)
+
+        self.playlist_view = PlaylistView(self)
+        self.playlist_view.set_cache_handler(self.cache)
+        self.playlist_dock = PlaylistDock(
+            cache_handler=self.cache,
+            playlist=self.playlist_view,
+            parent=self,
+        )
+        self.playlist_view.song_clicked.connect(self.playlist_song_clicked)
+        self.playlist_dock.setMinimumWidth(300)
+        self.playlist_dock.request_new_icon.connect(self.icon_download_queue.put)
+        self.playlist_dock.setAllowedAreas(
+            Qt.DockWidgetArea.NoDockWidgetArea
+            | Qt.DockWidgetArea.LeftDockWidgetArea
+            | Qt.DockWidgetArea.RightDockWidgetArea
+        )
+        self.playlist_dock.setWindowTitle("Playlist view")
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.playlist_dock)
+
+        self.player = PlayerDock(self.icons, self.fonts, parent=self)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.player)
+
+        self.song_view = SongView(self.cache, self.icons, self.fonts, parent=self)
+        self.setCentralWidget(self.song_view)
+
+    @Slot(str)
+    def extract_url(self, url: str):
+        request = YTMExtractInfo(url, parent=self)
+        request.processed.connect(self.info_extracted)
+        self.ytdlp_queue.put(request)
+
+    @Slot(SongWidget)
+    def playlist_song_clicked(self, song: SongWidget):
+        self.play_queue_op.add_song(song.data_)
+
+    @Slot(SongWidget)
+    def queue_item_clicked(self, song: SongWidget):
+        # check if song is in cache
+        cache_item = self.cache[song.data_["id"]]
+        audio = cache_item.audio
+        if not audio.exists():
+            request = YTMDownload(QUrl(song.data_["url"]), parent=self)
+            request.processed.connect(self.process_finished_audio_download_and_play)
+            self.ytdlp_queue.put(request)
+        else:
+            self.player.play(audio)
+
+    def process_finished_audio_download_and_play(self, response: YTMDownloadResponse):
+        filepath = self.process_finished_audio_download(response)
+        self.player.play(filepath)
+
+    def process_finished_audio_download(self, response: YTMDownloadResponse):
+        download = response["requested_downloads"][0]
+        id_ = response["id"]
+        path = Path(download["filepath"])
+        item = self.cache[id_]
+        destination = item.audio
+        path.replace(destination)
+        item.audio_format = download["audio_ext"]
+        item.metadata = {
+            "title": response["title"],
+            "description": response["description"],
+            "duration": response["duration"],
+            "artist": response["channel"],
+        }
+
+        return destination
+
+    @Slot(YTMResponse)
+    def info_extracted(self, info: YTMResponse):
+        response_type = ResponseTypes.from_extractor_key(info["extractor_key"])
+        print("Estimated response type: ", response_type)
+        match response_type:
+            case ResponseTypes.VIDEO:
+                _video: YTMVideoResponse = info  # type: ignore
+
+            case ResponseTypes.PLAYLIST:
+                playlist: YTMPlaylistResponse = info  # type: ignore
+                self.playlist_dock.clear()
+                for entry in playlist["entries"]:
+                    self.playlist_dock.add_song(entry)
+
+            case ResponseTypes.SEARCH:
+                _search: YTMSearchResponse = info  # type: ignore
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        with contextlib.suppress(Exception):
+            self.player.force_stop()
+
+            self.cache.save()
+            self.ytdlp_thread.stop()
+            self.ytdlp_thread.wait(10_000)
+            self.ytdlp_thread.terminate()
+            for provider in self.icon_providers:
+                provider.stop()
+
+        return super().closeEvent(event)
+
+
+def main():
+    app = QApplication([])
+
+    window = MainWindow()
+    window.show()
+
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
