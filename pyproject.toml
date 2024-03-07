@@ -7,8 +7,6 @@ dependencies = [
     "pillow>=10.2.0",
     "materialyoucolor>=2.0.7",
     "validators>=0.22.0",
-    "python-appimage>=1.2.5",
-    "setuptools>=69.1.1",
 ]
 description = "Default template for PDM package"
 license = { text = "MIT" }
@@ -27,6 +25,10 @@ requires = ["pdm-backend"]
 [tool.pdm]
 distribution = true
 
+[tool.pdm.dev-dependencies]
+dev = [
+    "python-appimage>=1.2.5",
+]
 [tool.ruff]
 line-length = 120
 target-version = "py312"

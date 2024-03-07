@@ -2,10 +2,10 @@
 # It is not intended for manual editing.
 
 [metadata]
-groups = ["default"]
+groups = ["default", "dev"]
 strategy = ["cross_platform", "inherit_metadata"]
 lock_version = "4.4.1"
-content_hash = "sha256:bfe4b5923a01ca8300e2f215571915400b26a48b08fc2082c3c6b4d4f39d4b2b"
+content_hash = "sha256:4376db06af46b00b9c33ead0c3e45bab2b6c1a469fc1d2ade97d585bb50b5992"
 
 [[package]]
 name = "brotli"
@@ -300,7 +300,7 @@ name = "python-appimage"
 version = "1.2.5"
 requires_python = ">=2.7"
 summary = "Appimage releases of Python"
-groups = ["default"]
+groups = ["default", "dev"]
 files = [
     {file = "python_appimage-1.2.5-py2.py3-none-any.whl", hash = "sha256:3b91d5929f632a8ccec9d9941d89bf36c80e09888f4a2a622639155c1e68fa63"},
 ]
@@ -320,17 +320,6 @@ dependencies = [
 files = [
     {file = "requests-2.31.0-py3-none-any.whl", hash = "sha256:58cd2187c01e70e6e26505bca751777aa9f2ee0b7f4300988b709f44e013003f"},
     {file = "requests-2.31.0.tar.gz", hash = "sha256:942c5a758f98d790eaed1a29cb6eefc7ffb0d1cf7af05c3d2791656dbd6ad1e1"},
-]
-
-[[package]]
-name = "setuptools"
-version = "69.1.1"
-requires_python = ">=3.8"
-summary = "Easily download, build, install, upgrade, and uninstall Python packages"
-groups = ["default"]
-files = [
-    {file = "setuptools-69.1.1-py3-none-any.whl", hash = "sha256:02fa291a0471b3a18b2b2481ed902af520c69e8ae0919c13da936542754b4c56"},
-    {file = "setuptools-69.1.1.tar.gz", hash = "sha256:5c0806c7d9af348e6dd3777b4f4dbb42c7ad85b190104837488eab9a7c945cf8"},
 ]
 
 [[package]]

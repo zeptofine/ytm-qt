@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ytm-qt
+Exec=ytm-qt
+Comment=ytm-qt
+Icon=python
+Categories=System;
+Terminal=true
