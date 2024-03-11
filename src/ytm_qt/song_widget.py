@@ -1,78 +1,43 @@
 import json
-import random
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import timedelta
-from functools import partial
+from pathlib import Path
 from pprint import pprint
 
 from PySide6.QtCore import (
-    Property,
     QEvent,
     QMimeData,
-    QPoint,
-    QPointF,
-    QPropertyAnimation,
-    QRect,
-    QRunnable,
-    QSize,
     Qt,
-    QThread,
-    QThreadPool,
-    QTimer,
     QUrl,
     Signal,
     Slot,
 )
 from PySide6.QtGui import (
-    QAction,
-    QCloseEvent,
-    QColor,
     QDrag,
-    QDragEnterEvent,
-    QDragLeaveEvent,
-    QDragMoveEvent,
-    QDropEvent,
     QEnterEvent,
     QFont,
     QFontMetrics,
     QIcon,
-    QKeySequence,
     QMouseEvent,
-    QPaintEvent,
     QPixmap,
 )
-from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import (
-    QApplication,
-    QComboBox,
-    QDockWidget,
-    QFrame,
     QGridLayout,
     QGroupBox,
-    QHBoxLayout,
     QLabel,
-    QLineEdit,
-    QListWidget,
-    QListWidgetItem,
-    QMainWindow,
-    QMenu,
-    QPushButton,
-    QScrollArea,
-    QSizePolicy,
-    QToolButton,
-    QVBoxLayout,
     QWidget,
 )
 
 from .cache_handlers import CacheItem
 from .dicts import (
-    SongMetaData,
+    YTMDownloadResponse,
     YTMSmallVideoResponse,
-    YTMVideoResponse,
 )
 from .fonts import Fonts
 from .icons import Icons
 from .threads.download_icons import DownloadIcon
+from .threads.ytdlrunner import YTMDownload
 
 
 class ElidedTextLabel(QLabel):
@@ -147,6 +112,7 @@ class ThumbnailLabel(QWidget):
 
 class SongWidget(QGroupBox):
     request_icon = Signal(DownloadIcon)
+    request_song = Signal(YTMDownload)
     play = Signal()
     clicked = Signal()
 
@@ -240,6 +206,34 @@ class SongWidget(QGroupBox):
             self.setStyleSheet("QGroupBox#SongWidget { border-color: white; }")
         else:
             self.setStyleSheet("")
+
+    def _request_song(self):
+        request = YTMDownload(QUrl(self.data_["url"]), parent=self)
+        request.processed.connect(self._song_gathered)
+        self.request_song.emit(request)
+
+    @Slot(YTMDownloadResponse)
+    def _song_gathered(self, response: YTMDownloadResponse):
+        download = response["requested_downloads"][0]
+        path = Path(download["filepath"])
+        path.replace(self.cache.audio)
+
+        self.cache.audio_format = download["audio_ext"]
+        self.cache.metadata = {
+            "title": response["title"],
+            "description": response["description"],
+            "duration": response["duration"],
+            "artist": response["channel"],
+        }
+
+    @property
+    def filepath(self):
+        return self.cache.audio
+
+    def ensure_audio_exists(self):
+        if not self.cache.audio.exists():
+            print("Requesting")
+            self._request_song()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if event.buttons() == Qt.MouseButton.LeftButton:  # Dragging

@@ -30,12 +30,9 @@ from .enums import ResponseTypes
 from .fonts import Fonts
 from .header import Header
 from .icons import Icons
-from .player import PlayerDock
-from .playlist_dock import PlaylistDock
 from .playlist_generators.op_wrapper import OperationWrapper
-from .playlists.playlist_view import PlaylistView
-from .playlists.queue_view import QueueView
-from .song_view import SongView
+from .playlist_generators.track_manager import TrackManager
+from .playlists import PlaylistDock, PlaylistView
 from .song_widget import SongWidget
 from .threads.download_icons import DownloadIconProvider
 from .threads.ytdlrunner import YoutubeDLProvider, YTDLUser, YTMDownload, YTMExtractInfo
@@ -139,11 +136,8 @@ class MainWindow(QMainWindow):
         self.playlist_dock.setWindowTitle("Playlist view")
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.playlist_dock)
 
-        self.player = PlayerDock(self.icons, self.fonts, parent=self)
-        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.player)
-
-        self.song_view = SongView(self.cache, self.icons, self.fonts, parent=self)
-        self.setCentralWidget(self.song_view)
+        self.main_w = QWidget()
+        self.setCentralWidget(self.main_w)
 
     @Slot(str)
     def extract_url(self, url: str):
@@ -151,42 +145,14 @@ class MainWindow(QMainWindow):
         request.processed.connect(self.info_extracted)
         self.ytdlp_queue.put(request)
 
+    @Slot(YTMDownload)
+    def song_requested(self, request: YTMDownload):
+        print(f"Request recieved: {request}")
+        self.ytdlp_queue.put(request)
+
     @Slot(SongWidget)
     def playlist_song_clicked(self, song: SongWidget):
         self.play_queue_op.add_song(song.data_)
-
-    @Slot(SongWidget)
-    def queue_item_clicked(self, song: SongWidget):
-        # check if song is in cache
-        cache_item = self.cache[song.data_["id"]]
-        audio = cache_item.audio
-        if not audio.exists():
-            request = YTMDownload(QUrl(song.data_["url"]), parent=self)
-            request.processed.connect(self.process_finished_audio_download_and_play)
-            self.ytdlp_queue.put(request)
-        else:
-            self.player.play(audio)
-
-    def process_finished_audio_download_and_play(self, response: YTMDownloadResponse):
-        filepath = self.process_finished_audio_download(response)
-        self.player.play(filepath)
-
-    def process_finished_audio_download(self, response: YTMDownloadResponse):
-        download = response["requested_downloads"][0]
-        id_ = response["id"]
-        path = Path(download["filepath"])
-        item = self.cache[id_]
-        destination = item.audio
-        path.replace(destination)
-        item.audio_format = download["audio_ext"]
-        item.metadata = {
-            "title": response["title"],
-            "description": response["description"],
-            "duration": response["duration"],
-            "artist": response["channel"],
-        }
-
-        return destination
 
     @Slot(YTMResponse)
     def info_extracted(self, info: YTMResponse):
@@ -207,7 +173,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         with contextlib.suppress(Exception):
-            self.player.force_stop()
+            self.player_dock.force_stop()
 
             self.cache.save()
             self.ytdlp_thread.stop()

@@ -15,11 +15,6 @@ class InfiniteLoopType(Enum):
     ALWAYS = 2
 
 
-@dataclass
-class Song:
-    song: str
-
-
 class SongOperation:
     no_return = InfiniteLoopType.NONE
 
@@ -28,7 +23,7 @@ class SongOperation:
         return cls.__name__.lower()
 
     @abstractmethod
-    def get(self) -> Generator[Song, None, None]: ...
+    def get(self) -> Generator[SongWidget, None, None]: ...
 
     @abstractmethod
     def is_infinite(self) -> InfiniteLoopType:

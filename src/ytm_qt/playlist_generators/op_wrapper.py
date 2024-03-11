@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
 from ytm_qt import CacheHandler, Icons, SongWidget
 from ytm_qt.dicts import YTMSmallVideoResponse
 from ytm_qt.threads.download_icons import DownloadIcon
+from ytm_qt.threads.ytdlrunner import YTMDownload
 
 from . import operation_settings
 from .song_ops import (
@@ -45,14 +46,18 @@ from .song_ops import (
     PlayOnce,
     RandomPlay,
     RandomPlayForever,
+    RecursiveSongOperation,
     SinglePlay,
     SongOperation,
 )
+from .track_manager import TrackManager
 
 
 class OperationWrapper(QWidget):
     request_new_icon = Signal(DownloadIcon)
+    request_song = Signal(YTMDownload)
     ungroup_signal = Signal()
+    manager_generated = Signal(TrackManager)
 
     def __init__(self, icons: Icons, resizable=False, parent: OperationWrapper | QWidget | None = None) -> None:
         super().__init__(parent)
@@ -128,7 +133,7 @@ class OperationWrapper(QWidget):
         self.add_group_button.clicked.connect(self.add_group)
         self.generate_button = QPushButton(self)
         self.generate_button.setText("Generate")
-        self.generate_button.clicked.connect(lambda: print(self.validate_operations()))
+        self.generate_button.clicked.connect(self.validate_operations)
 
         self._layout.addWidget(self.mode_dropdown, 0, 0)
         self._layout.addWidget(self.add_group_button, 0, 1)
@@ -225,15 +230,11 @@ class OperationWrapper(QWidget):
 
         return self.mode(ops, **self.mode_settings.get_kwargs())
 
-    @Slot()
-    def validate_operations(self, ops=None):
+    def validate_operations(self, ops: SongOperation | None = None):
         ops = ops or self.generate_operations()
-        print(ops)
-        print(f"{ops.is_infinite()=}")
-        print(f"{ops.is_valid()=}")
-        if ops.is_infinite() == InfiniteLoopType.NONE:
-            for song in ops.get():
-                print(song)
+        assert isinstance(ops, RecursiveSongOperation)
+        manager = TrackManager(ops)
+        self.manager_generated.emit(manager)
 
     @Slot()
     def add_group(self):
@@ -365,6 +366,7 @@ class OperationWrapper(QWidget):
         if not tree:  # tree must be ()
             item = self.create_item(json.loads(mimedata.text()))
             item.request_icon.connect(self.request_new_icon)
+            item.request_song.connect(self.request_song)
             item.set_icon()
             if n > self.box.count():
                 n = None
@@ -390,7 +392,8 @@ class OperationWrapper(QWidget):
 
     def add_song(self, response: YTMSmallVideoResponse):
         item = self.create_item(response)
-        item.request_icon.connect(self.request_new_icon.emit)
+        item.request_icon.connect(self.request_new_icon)
+        item.request_song.connect(self.request_song)
         item.set_icon()
         self.add_item(item)
 
