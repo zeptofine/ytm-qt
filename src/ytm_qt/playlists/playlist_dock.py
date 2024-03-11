@@ -1,26 +1,14 @@
-from collections.abc import Callable
-from random import random
-
-from PySide6.QtCore import QSize, Qt, Signal, Slot
-from PySide6.QtGui import QAction, QMouseEvent
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
-    QCheckBox,
     QDockWidget,
-    QGroupBox,
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QMenu,
-    QProgressBar,
-    QToolButton,
 )
 
 from ytm_qt import CacheHandler
+from ytm_qt.dicts import YTMSmallVideoResponse
+from ytm_qt.song_widget import SongWidget
+from ytm_qt.threads.download_icons import DownloadIcon
 
-from .dicts import YTMSmallVideoResponse
-from .playlists.list_view import ListView
-from .song_widget import SongWidget
-from .threads.download_icons import DownloadIcon
+from .list_view import ListView
 
 
 class PlaylistDock[T: ListView](QDockWidget):
@@ -41,7 +29,7 @@ class PlaylistDock[T: ListView](QDockWidget):
 
     def _create_song(self, dct: YTMSmallVideoResponse):
         widget = SongWidget(dct, self.cache_handler[dct["id"]], parent=self.list)
-        widget.request_icon.connect(self.request_new_icon.emit)
+        widget.request_icon.connect(self.request_new_icon)
         widget.set_icon()
         return widget
 

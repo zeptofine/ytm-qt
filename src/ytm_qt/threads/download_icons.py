@@ -1,12 +1,6 @@
 import contextlib
-import sys
-from abc import abstractmethod
-from collections import deque
-from enum import Enum
 from pathlib import Path
-from pprint import pprint
 from queue import Empty, Queue
-from typing import TypedDict
 
 import requests
 from PIL import Image
@@ -14,18 +8,8 @@ from PySide6.QtCore import (
     QObject,
     QRunnable,
     QThread,
-    QThreadPool,
     QUrl,
-    QWaitCondition,
     Signal,
-)
-from yt_dlp import YoutubeDL
-
-from ..dicts import (
-    YTMPlaylistResponse,
-    YTMResponse,
-    YTMSearchResponse,
-    YTMVideoResponse,
 )
 
 

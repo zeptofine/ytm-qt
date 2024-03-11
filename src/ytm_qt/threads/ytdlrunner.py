@@ -9,8 +9,7 @@ from PySide6.QtCore import (
     Signal,
 )
 from yt_dlp import YoutubeDL
-
-from ..dicts import (
+from ytm_qt.dicts import (
     YTMDownloadResponse,
     YTMResponse,
 )
@@ -29,8 +28,7 @@ class YTDLUser(QObject):
         self.finished.emit()
 
     @abstractmethod
-    def process(self, ytdl: YoutubeDL):
-        ...
+    def process(self, ytdl: YoutubeDL): ...
 
 
 class YTMExtractInfo(YTDLUser):
