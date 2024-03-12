@@ -65,19 +65,6 @@ class OperationWrapper(QWidget):
         self._selected = False
         self.previous_position = None
 
-        if isinstance(parent, OperationWrapper):
-            self.tree = (*parent.tree, self)
-            self.is_suboperation = True
-
-            ungroup_action = QAction(text="Ungroup", parent=self)
-            ungroup_action.setIcon(icons.deselect)
-            ungroup_action.triggered.connect(self.ungroup_self)
-            self.addAction(ungroup_action)
-
-        else:
-            self.tree = (self,)
-            self.is_suboperation = False
-
         self.cache_handler = None
         self.widgets: list[OperationWrapper | SongWidget] = []
 
@@ -90,16 +77,6 @@ class OperationWrapper(QWidget):
         self._layout = QGridLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(0)
-        self.scroll_widget = QWidget(self)
-        self.box = QVBoxLayout(self.scroll_widget)
-        self.box.setContentsMargins(10, 0, 0, 0)
-        self.box.setSpacing(0)
-        self.scroll_widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum)
-        self.scroll_area = QScrollArea(self)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll_area.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setWidget(self.scroll_widget)
 
         self.add_group_action = QAction("Add group", parent=self)
         self.add_group_action.triggered.connect(self.add_group)
@@ -124,14 +101,40 @@ class OperationWrapper(QWidget):
         for label, (icon, _) in self.modes.items():
             self.mode_dropdown.addItem(icon, label)
 
-        self.add_group_button = QPushButton(self)
-        self.add_group_button.setText("+ Add group")
-        self.add_group_button.clicked.connect(self.add_group)
-
         self._layout.addWidget(self.mode_dropdown, 0, 0)
-        self._layout.addWidget(self.add_group_button, 0, 1)
-        self._layout.addLayout(self.mode_settings_holder, 1, 0, 1, 2)
-        self._layout.addWidget(self.scroll_area, 2, 0, 1, 2)
+        self._layout.addLayout(self.mode_settings_holder, 1, 0)
+
+        self.box = QVBoxLayout()
+        self.box.setContentsMargins(10, 0, 0, 0)
+        self.box.setSpacing(0)
+
+        self.tree: tuple[OperationWrapper, ...]
+        if isinstance(parent, OperationWrapper):
+            self.tree = (*parent.tree, self)
+            self.is_suboperation = True
+            ungroup_action = QAction(text="Ungroup", parent=self)
+            ungroup_action.setIcon(icons.deselect)
+            ungroup_action.triggered.connect(self.ungroup_self)
+            self.addAction(ungroup_action)
+
+            widget = QFrame(self)
+            widget.setLayout(self.box)
+            widget.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
+            widget.setMinimumHeight(30)
+            self._layout.addWidget(widget)
+        else:
+            self.tree = (self,)
+            self.is_suboperation = False
+
+            scroll_widget = QWidget(self)
+            scroll_widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum)
+            scroll_widget.setLayout(self.box)
+            scroll_area = QScrollArea(self)
+            scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            scroll_area.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
+            scroll_area.setWidgetResizable(True)
+            scroll_area.setWidget(scroll_widget)
+            self._layout.addWidget(scroll_area, 2, 0)
 
     def add_item(self, widget: OperationWrapper | SongWidget, idx=None):
         if idx is None:
@@ -160,12 +163,12 @@ class OperationWrapper(QWidget):
         if hide:
             item.hide()
 
-    def move_item(self, item: OperationWrapper, direction: int):
+    def move_item(self, item: OperationWrapper | SongWidget, direction: int):
         """Moves an item in the box to a new position.
         Requires the object to be in the current box.
 
         Args:
-            item (OperationWrapper): The item to move
+            item (OperationWrapper | SongWidget): The item to move
             direction (int): The direction of the move (ex. 1 for forward, -1 for backward)
         """
         index: int = self.box.indexOf(item)
@@ -274,19 +277,6 @@ class OperationWrapper(QWidget):
                 return tree
 
         return ()
-
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if self.resizable and event.buttons() == Qt.MouseButton.LeftButton and self.previous_position is not None:
-            pos_change = event.position() - self.previous_position
-            new_height = int(self.size().height() + pos_change.y())
-            self.setMinimumHeight(max(new_height, 0))
-        self.previous_position = event.position()
-        event.accept()
-
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        self.pressed_position = event.position()
-        self.previous_position = self.pressed_position
-        return super().mousePressEvent(event)
 
     def group_widget(self, widget: SongWidget):
         # replace the widget with a OperationWrapper, then move the widget into it
