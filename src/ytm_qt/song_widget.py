@@ -165,6 +165,7 @@ class SongWidget(QGroupBox):
         self.setMouseTracking(True)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
         self.setMinimumHeight(50)
+        self.setContentsMargins(0, 0, 0, 0)
 
         self._selected = False
 

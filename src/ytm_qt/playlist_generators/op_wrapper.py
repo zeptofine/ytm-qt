@@ -106,10 +106,11 @@ class OperationWrapper(QWidget):
         self.group_action = QAction(text="Group selected", parent=self)
         self.group_hotkey = QKeySequence(Qt.Key.Key_Control | Qt.Key.Key_G)
         self.group_action.setShortcut(self.group_hotkey)
-        self.del_action = QAction(text="Delete hovered", parent=self)
-        self.del_hotkey = QKeySequence(Qt.Key.Key_Delete)
-        self.del_action.setShortcut(self.del_hotkey)
+        self.generate_action = QAction(text="Generate", parent=self)
+        self.generate_action.triggered.connect(self.validate_operations)
+
         self.addAction(self.add_group_action)
+        self.addAction(self.generate_action)
 
         self.modes: dict[str, tuple[QIcon, type[SongOperation]]] = {
             "Play once": (icons.play_button, PlayOnce),
@@ -126,15 +127,11 @@ class OperationWrapper(QWidget):
         self.add_group_button = QPushButton(self)
         self.add_group_button.setText("+ Add group")
         self.add_group_button.clicked.connect(self.add_group)
-        self.generate_button = QPushButton(self)
-        self.generate_button.setText("Generate")
-        self.generate_button.clicked.connect(lambda: print(self.validate_operations()))
 
         self._layout.addWidget(self.mode_dropdown, 0, 0)
         self._layout.addWidget(self.add_group_button, 0, 1)
-        self._layout.addWidget(self.generate_button, 0, 2)
-        self._layout.addLayout(self.mode_settings_holder, 1, 0, 1, 3)
-        self._layout.addWidget(self.scroll_area, 2, 0, 1, 3)
+        self._layout.addLayout(self.mode_settings_holder, 1, 0, 1, 2)
+        self._layout.addWidget(self.scroll_area, 2, 0, 1, 2)
 
     def add_item(self, widget: OperationWrapper | SongWidget, idx=None):
         if idx is None:
