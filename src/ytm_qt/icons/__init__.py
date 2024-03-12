@@ -28,6 +28,10 @@ class Icons:
     group: QIcon
     select: QIcon
     deselect: QIcon
+    c_up: QIcon
+    c_down: QIcon
+    c_left: QIcon
+    c_right: QIcon
 
     @classmethod
     @cache
@@ -37,21 +41,31 @@ class Icons:
         def google(p):
             return render_icon(ICONS_PATH / "google" / p, col)
 
+        def garrows(p):
+            return google(Path("arrows") / p)
+
+        def gplay(p):
+            return google(Path("playback") / p)
+
         return cls(
-            play_button=google("play_arrow.svg"),
-            pause_button=google("pause.svg"),
+            play_button=gplay("play_arrow.svg"),
+            pause_button=gplay("pause.svg"),
             more_horiz=google("more_horiz.svg"),
             more_vert=google("more_vert.svg"),
-            next=google("last_page.svg"),
-            prev=google("first_page.svg"),
-            repeat=google("repeat_FILL1_wght400.svg"),
-            repeat_bold=google("repeat_FILL1_wght700.svg"),
-            repeat_one=google("repeat_one_FILL1_wght700.svg"),
-            shuffle=google("shuffle_FILL1_wght400.svg"),
-            shuffle_bold=google("shuffle_FILL1_wght700.svg"),
+            next=garrows("last_page.svg"),
+            prev=garrows("first_page.svg"),
+            repeat=gplay("repeat_FILL1_wght400.svg"),
+            repeat_bold=gplay("repeat_FILL1_wght700.svg"),
+            repeat_one=gplay("repeat_one_FILL1_wght700.svg"),
+            shuffle=gplay("shuffle_FILL1_wght400.svg"),
+            shuffle_bold=gplay("shuffle_FILL1_wght700.svg"),
             group=google("group.svg"),
             select=google("select.svg"),
             deselect=google("remove_selection.svg"),
+            c_up=garrows("chevron_up.svg"),
+            c_down=garrows("chevron_down.svg"),
+            c_left=garrows("chevron_left.svg"),
+            c_right=garrows("chevron_right.svg"),
         )
 
 

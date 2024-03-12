@@ -26,7 +26,7 @@ requires = ["pdm-backend"]
 distribution = true
 
 [tool.pdm.dev-dependencies]
-dev = ["python-appimage>=1.2.5"]
+dev = ["python-appimage>=1.2.5", "ruff>=0.3.2"]
 [tool.ruff]
 line-length = 120
 target-version = "py312"
