@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import ClassVar
 
-from ytm_qt import SongWidget
-
 
 class InfiniteLoopType(Enum):
     NONE = 0
@@ -15,7 +13,7 @@ class InfiniteLoopType(Enum):
     ALWAYS = 2
 
 
-class SongOperation:
+class SongOperation[T]:
     no_return = InfiniteLoopType.NONE
 
     @classmethod
@@ -23,7 +21,7 @@ class SongOperation:
         return cls.__name__.lower()
 
     @abstractmethod
-    def get(self) -> Generator[SongWidget, None, None]: ...
+    def get(self) -> Generator[T, None, None]: ...
 
     @abstractmethod
     def is_infinite(self) -> InfiniteLoopType:
@@ -35,8 +33,8 @@ class SongOperation:
 
 
 @dataclass
-class RecursiveSongOperation(SongOperation):
-    songs: list[SongOperation]
+class RecursiveSongOperation[T](SongOperation[T]):
+    songs: list[SongOperation[T]]
 
     @abstractmethod
     def is_infinite(self):
@@ -51,10 +49,10 @@ class RecursiveSongOperation(SongOperation):
 
 
 @dataclass
-class SinglePlay(SongOperation):
+class SinglePlay[T](SongOperation[T]):
     """Plays a song."""
 
-    song: SongWidget
+    song: T
 
     def get(self):
         yield self.song
@@ -63,16 +61,19 @@ class SinglePlay(SongOperation):
     def is_valid(self) -> bool:
         return True
 
+    def key(self):
+        return str(self.song)
 
-class PlayOnce(RecursiveSongOperation):
+
+class PlayOnce[T](RecursiveSongOperation[T]):
     def get(self):
         for song in self.songs:
             yield from song.get()
 
 
 @dataclass
-class LoopNTimes(RecursiveSongOperation):
-    songs: list[SongOperation]
+class LoopNTimes[T](RecursiveSongOperation[T]):
+    songs: list[SongOperation[T]]
     times: int
 
     def __post_init__(self):
