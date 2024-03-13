@@ -133,6 +133,7 @@ class SongWidget(QFrame):
         self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
 
         self._selected = False
+        self.dropped_pixmap = None
 
         self.layout_ = QGridLayout(self)
         self.layout_.setContentsMargins(0, 0, 0, 0)
@@ -195,6 +196,7 @@ class SongWidget(QFrame):
         drag.setMimeData(mime)
 
         pixmap = QPixmap(self.size())
+        self.dropped_pixmap = pixmap
         self.render(pixmap)
         drag.setPixmap(pixmap)
 

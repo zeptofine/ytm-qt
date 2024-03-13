@@ -6,27 +6,36 @@ from functools import partial
 from typing import overload
 
 from PySide6.QtCore import (
+    QEvent,
+    QMimeData,
     QPoint,
     QPointF,
     Qt,
+    QUrl,
     Signal,
     Slot,
 )
 from PySide6.QtGui import (
     QAction,
+    QDrag,
     QDragEnterEvent,
     QDragLeaveEvent,
     QDragMoveEvent,
     QDropEvent,
+    QEnterEvent,
+    QFont,
+    QFontMetrics,
     QIcon,
     QKeySequence,
     QMouseEvent,
+    QPixmap,
 )
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -113,7 +122,7 @@ class OperationWrapper(QWidget):
             self.mode_dropdown.addItem(icon, label)
 
         self._layout.addWidget(self.mode_dropdown, 0, 0)
-        self._layout.addLayout(self.mode_settings_holder, 1, 0)
+        self._layout.addLayout(self.mode_settings_holder, 0, 1)
 
         self.tree: tuple[OperationWrapper, ...]
         if isinstance(parent, OperationWrapper):
@@ -128,7 +137,7 @@ class OperationWrapper(QWidget):
             widget.setLayout(self.widgets)
             widget.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
             widget.setMinimumHeight(30)
-            self._layout.addWidget(widget)
+            self._layout.addWidget(widget, 1, 0, 1, 2)
         else:
             self.tree = (self,)
             self.is_suboperation = False
@@ -141,7 +150,7 @@ class OperationWrapper(QWidget):
             scroll_area.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
             scroll_area.setWidgetResizable(True)
             scroll_area.setWidget(scroll_widget)
-            self._layout.addWidget(scroll_area, 2, 0)
+            self._layout.addWidget(scroll_area, 1, 0, 1, 2)
 
     def add_item(self, widget: OperationWrapper | SongWidget, idx=None):
         if idx is None:
@@ -191,7 +200,7 @@ class OperationWrapper(QWidget):
     def clear(self):
         self.widgets.clear()
 
-    def set_cache_handler(self, ch: CacheHandler):
+    def set_cache_handler(self, ch: CacheHandler | None):
         self.cache_handler = ch
 
     def switch_mode(self, m: type[SongOperation]):
@@ -268,11 +277,10 @@ class OperationWrapper(QWidget):
             return self.tree[0].find_parent(item)
         subts: list[OperationWrapper] = []
         for item_ in self.widgets:
-            if isinstance(item_, OperationWrapper):
-                subts.append(item_)
-                continue
             if item_ is item:
                 return self.tree
+            if isinstance(item_, OperationWrapper):
+                subts.append(item_)
         for wrapper in subts:
             if tree := wrapper.find_parent(item, _recursed=True):
                 return tree
@@ -333,10 +341,29 @@ class OperationWrapper(QWidget):
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         mimedata = event.mimeData()
 
-        if not mimedata.hasText():
+        if not mimedata.hasText() or event.source() is self:
             event.ignore()
         else:
             event.accept()
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        if event.buttons() == Qt.MouseButton.LeftButton and self.is_suboperation:  # Dragging
+            self.start_drag()
+
+        return super().mouseMoveEvent(event)
+
+    def start_drag(self):
+        drag = QDrag(self)
+        mime = QMimeData()
+        mime.setText("OperationWrapper")
+        drag.setMimeData(mime)
+
+        pixmap = QPixmap(self.size())
+        self.dropped_pixmap = pixmap
+        self.render(pixmap)
+        drag.setPixmap(pixmap)
+
+        drag.exec(Qt.DropAction.MoveAction)
 
     @property
     def request(self) -> OperationRequest:
@@ -356,7 +383,8 @@ class OperationWrapper(QWidget):
         mimedata = event.mimeData()
         source: SongWidget | OperationWrapper = event.source()  # type: ignore
         tree = self.find_parent(source)
-
+        print(source)
+        print(tree)
         n = self._find_drop_position(event.position())
         if not tree:  # tree must be ()
             item = self.create_item(SongRequest(json.loads(mimedata.text())))
@@ -369,7 +397,9 @@ class OperationWrapper(QWidget):
             n = max(min(n, len(self.widgets) - 1), 0)
             if parent is not self:
                 parent.remove_item(source)
+
                 self.add_item(self.create_item(source.request, playable=True), n)
+
                 # parent.widgets.remove(source)
                 # self.widgets.insert(n, source)
             else:
@@ -389,6 +419,7 @@ class OperationWrapper(QWidget):
         if isinstance(response, OperationRequest):
             ow = OperationWrapper(self.icons, resizable=False, parent=self)
             ow.mode = response.data_type
+            ow.set_cache_handler(self.cache_handler)
             for song in response.songs:
                 ow.add_song(song)
             return ow

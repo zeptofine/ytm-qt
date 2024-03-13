@@ -188,7 +188,7 @@ class MainWindow(QMainWindow):
 
 
 def main():
-    app = QApplication([])
+    app = QApplication(sys.argv)
 
     window = MainWindow()
     window.show()

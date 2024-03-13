@@ -3,7 +3,6 @@ from datetime import timedelta
 from pathlib import Path
 from pprint import pprint
 
-import yt_dlp
 from PySide6.QtCore import (
     Qt,
     Signal,
@@ -90,9 +89,9 @@ class Player(QWidget):
         self.layout_.addWidget(self.current_label, 1, 0, 1, 3)
         self.layout_.addWidget(self.next_label, 2, 0, 1, 3)
         self.layout_.addWidget(self.controller, 3, 0, 2, 1)
-        self.layout_.addWidget(self.progress_bar, 3, 1, 1, 2)
+        self.layout_.addWidget(self.progress_bar, 3, 1, 1, 3)
         self.layout_.addWidget(self.progress_display, 4, 1)
-        self.layout_.addWidget(self.volume_slider, 4, 2)
+        self.layout_.addWidget(self.volume_slider, 4, 3)
 
     # Track manager
     @Slot(TrackManager)
@@ -174,10 +173,22 @@ class Player(QWidget):
 
 
 class PlayerDock(QDockWidget):
-    def __init__(self, icons: Icons, fonts: Fonts, parent=None):
+    def __init__(self, icons: Icons, fonts: Fonts, parent=None, floatable=False):
         super().__init__(parent)
         self.player = Player(icons, fonts, self)
         self.setWidget(self.player)
+        self.setWindowTitle("Player controls")
+        self.__empty_titlebar = QWidget()
+        self.__current_titlebar = self.titleBarWidget()
+        self.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+            | QDockWidget.DockWidgetFeature.DockWidgetMovable
+            | QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
+        self.set_floatable(floatable)
+
+    def set_floatable(self, b: bool):
+        self.setTitleBarWidget([self.__empty_titlebar, self.__current_titlebar][b])
 
     # @Slot(int)
     # def progress_changed(self, ms: int):
