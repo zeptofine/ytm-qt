@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 from queue import Queue
 
+import darkdetect as dd
 from PySide6.QtCore import (
     Qt,
     QThreadPool,
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .audio_player import PlayerDock
 from .cache_handlers import CacheHandler
 from .dicts import (
     YTMDownloadResponse,
@@ -31,7 +33,6 @@ from .fonts import Fonts
 from .header import Header
 from .icons import Icons
 from .playlist_generators.op_wrapper import OperationWrapper
-from .playlist_generators.track_manager import TrackManager
 from .playlists import PlaylistDock, PlaylistView
 from .song_widget import SongWidget
 from .threads.download_icons import DownloadIconProvider
@@ -72,7 +73,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("ytm-qt")
         self.resize(1200, 800)
 
-        self.icons = Icons.get()
+        col = ("black", "white")[bool(dd.isDark())]
+
+        self.icons = Icons.get(col)
         self.fonts = Fonts.get()
 
         self.header = Header(self)
@@ -97,15 +100,13 @@ class MainWindow(QMainWindow):
         infotask.processed.connect(self.info_extracted)
         self.ytdlp_queue.put(infotask)
 
-        # self.play_queue_view = QueueView(self)
-        # self.play_queue_view.set_cache_handler(self.cache)
-        # self.play_queue = PlaylistDock(cache_handler=self.cache, playlist=self.play_queue_view, parent=self)
-        # self.play_queue.request_new_icon.connect(self.icon_download_queue.put)
+        self.player_dock = PlayerDock(self.icons, self.fonts, parent=self)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.player_dock)
 
-        # self.play_queue.list.play_clicked.connect(self.queue_item_clicked)
-        # self.play_queue.setWindowTitle("Playing view")
         self.play_queue_op = OperationWrapper(self.icons, parent=self)
         self.play_queue_op.set_cache_handler(self.cache)
+        self.play_queue_op.manager_generated.connect(self.player_dock.player.set_manager)
+        self.play_queue_op.request_song.connect(self.song_requested)
         self.play_queue_dock = QDockWidget()
         self.play_queue_dock.setWidget(self.play_queue_op)
         self.play_queue_dock.setMinimumWidth(400)
@@ -114,6 +115,7 @@ class MainWindow(QMainWindow):
             | Qt.DockWidgetArea.LeftDockWidgetArea
             | Qt.DockWidgetArea.RightDockWidgetArea
         )
+        self.play_queue_dock.setWindowTitle("Playing queue")
 
         # self.play_queue_op
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.play_queue_dock)
@@ -125,7 +127,7 @@ class MainWindow(QMainWindow):
             playlist=self.playlist_view,
             parent=self,
         )
-        self.playlist_view.song_clicked.connect(self.playlist_song_clicked)
+        self.playlist_view.add_to_queue.connect(self.playlist_song_clicked)
         self.playlist_dock.setMinimumWidth(300)
         self.playlist_dock.request_new_icon.connect(self.icon_download_queue.put)
         self.playlist_dock.setAllowedAreas(
@@ -152,7 +154,7 @@ class MainWindow(QMainWindow):
 
     @Slot(SongWidget)
     def playlist_song_clicked(self, song: SongWidget):
-        self.play_queue_op.add_song(song.data_)
+        self.play_queue_op.add_song(song.request)
 
     @Slot(YTMResponse)
     def info_extracted(self, info: YTMResponse):

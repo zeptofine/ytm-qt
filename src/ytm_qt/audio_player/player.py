@@ -1,32 +1,24 @@
 import sys
 from datetime import timedelta
 from pathlib import Path
+from pprint import pprint
 
 import yt_dlp
 from PySide6.QtCore import (
-    QDir,
-    QRunnable,
-    QSize,
     Qt,
-    QThread,
-    QThreadPool,
-    QUrl,
     Signal,
     Slot,
 )
-from PySide6.QtGui import QCloseEvent, QIcon, QMouseEvent
 from PySide6.QtMultimedia import QAudioDevice, QAudioOutput, QMediaDevices, QMediaPlayer
 from PySide6.QtWidgets import (
     QAbstractSlider,
     QApplication,
     QDockWidget,
     QGridLayout,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
-    QMainWindow,
     QProgressBar,
     QPushButton,
     QSlider,
@@ -36,8 +28,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .fonts import Fonts
-from .icons import Icons
+from ytm_qt import Fonts, Icons
+from ytm_qt.audio_player.control_buttons import ControlButtons
+from ytm_qt.playlist_generators.track_manager import TrackManager
+
+from .audio_player import AudioPlayer
 
 
 class TrackedSlider(QSlider):
@@ -55,87 +50,99 @@ class TrackedSlider(QSlider):
             super().setValue(arg__1)
 
 
-class PlayerWidget(QWidget):
-    previous_song = Signal()
-    update_playing_status = Signal(bool)
-
-    update_volume = Signal(float)
-
-    def __init__(self, icons: Icons, fonts: Fonts, parent: QWidget | None = None) -> None:
+class Player(QWidget):
+    def __init__(self, icons: Icons, fonts: Fonts, parent=None):
         super().__init__(parent)
         self.icons = icons
         self.fonts = fonts
-        self.layout_ = QGridLayout(self)
 
-        button_size = QSize(40, 40)
-
-        self.previous_button = QPushButton(self)
-        self.previous_button.setIcon(self.icons.prev)
-        self.previous_button.clicked.connect(self.previous_song.emit)
-        self.play_button = QPushButton(self)
-        self.play_button.setIcon(self.icons.play_button)
-        self.play_button.clicked.connect(self.update_play)
-        self.next_button = QPushButton(self)
-        self.next_button.setIcon(self.icons.next)
+        self.controller = ControlButtons(self.icons, parent=self)
+        self.controller.next.connect(self.move_next)
+        self.controller.play.connect(self.resume)
+        self.controller.pause.connect(self.pause)
+        self.controller.back.connect(self.move_previous)
 
         self.time = timedelta(milliseconds=0)
         self.duration = timedelta(milliseconds=0)
         self.progress_bar = TrackedSlider(Qt.Orientation.Horizontal, self)
         self.progress_bar.force_slide.connect(lambda x: print(f"Force slid: {x}"))
-        self.duration_display = QLabel(self)
+        self.progress_display = QLabel(self)
         self.update_duration_display()
 
-        self.kebab = QToolButton(self)
-        self.kebab.setIcon(icons.more_vert)
+        self.manager = None
+        self.audio_player = AudioPlayer(QMediaDevices.defaultAudioOutput())  # TODO: Make this configurable
+        self.audio_player.duration_changed.connect(self.progress_bar.setMaximum)
+        self.audio_player.progress_changed.connect(self.progress_bar.setValue)
+        self.audio_player.progress_changed.connect(self.update_duration_display)
+        self.audio_player.mediastatus_changed.connect(self.media_status_changed)
 
-        self.volume_bar = QSlider(Qt.Orientation.Horizontal, self)
-        self.volume_bar.setMinimum(0)
-        self.volume_bar.setMaximum(100)
-        self.volume_bar.setValue(100)
-        self.volume_bar.setMaximumWidth(200)
-        self.volume_bar.valueChanged.connect(self._update_volume)
+        self.volume_slider = QSlider(Qt.Orientation.Horizontal, self)
+        self.volume_slider.setMaximum(100)
+        self.volume_slider.setMinimum(0)
+        self.volume_slider.valueChanged.connect(lambda v: self.audio_player.media_output.setVolume(v / 100))
+        self.volume_slider.setValue(100)
+        self.previous_label = QLabel(self)
+        self.current_label = QLabel(self)
+        self.next_label = QLabel(self)
 
-        self.previous_button.setFixedSize(button_size)
-        self.play_button.setFixedSize(button_size)
-        self.next_button.setFixedSize(button_size)
+        self.layout_ = QGridLayout(self)
+        self.layout_.addWidget(self.previous_label, 0, 0, 1, 3)
+        self.layout_.addWidget(self.current_label, 1, 0, 1, 3)
+        self.layout_.addWidget(self.next_label, 2, 0, 1, 3)
+        self.layout_.addWidget(self.controller, 3, 0, 2, 1)
+        self.layout_.addWidget(self.progress_bar, 3, 1, 1, 2)
+        self.layout_.addWidget(self.progress_display, 4, 1)
+        self.layout_.addWidget(self.volume_slider, 4, 2)
 
-        self.layout_.addWidget(self.progress_bar, 0, 0, 1, 6)
-        self.layout_.addWidget(self.previous_button, 1, 0)
-        self.layout_.addWidget(self.play_button, 1, 1)
-        self.layout_.addWidget(self.next_button, 1, 2)
-        self.layout_.addWidget(self.duration_display, 1, 3)
+    # Track manager
+    @Slot(TrackManager)
+    def set_manager(self, m: TrackManager):
+        print(m)
+        self.manager = m
+        self.move_next()
 
-        self.layout_.addWidget(self.kebab, 1, 4)
-        self.layout_.addWidget(self.volume_bar, 1, 5)
+    def move_next(self):
+        assert self.manager is not None
+        try:
+            self.manager.move_next()
+            self.update_text()
+            if self.manager.current_song is not None:
+                self.manager.current_song.ensure_audio_exists()
+            if (n := self.manager.get_next()) is not None:
+                n.ensure_audio_exists()
 
-        self.playing = False
+        except StopIteration:
+            # we have played the last song and cannot continue
+            # This should be impossible to reach
+            ...
+
+    def move_previous(self):
+        assert self.manager is not None
+        self.manager.move_previous()
+        self.update_text()
+        if self.manager.current_song is not None:
+            self.manager.current_song.ensure_audio_exists()
+        if (p := self.manager.get_previous()) is not None:
+            p.ensure_audio_exists()
 
     @Slot()
-    def update_play(self):
-        if not self.playing:
-            self.playing = True
-            self.play_button.setIcon(self.icons.pause_button)
-            self.update_playing_status.emit(True)
-        else:
-            self.playing = False
-            self.play_button.setIcon(self.icons.play_button)
-            self.update_playing_status.emit(False)
+    def update_text(self):
+        assert self.manager is not None
+        p = self.manager.get_previous()
+        self.previous_label.setText(f"last: {p.data_title if p is not None else 'None'}")
+        self.previous_label.setEnabled(p is not None)
+        c = self.manager.current_song
+        self.current_label.setText(f"now: {c.data_title  if c is not None else 'None'}")
+        n = self.manager.get_next()
+        self.next_label.setText(f"next: {n.data_title  if n is not None else 'None'}")
+        self.next_label.setEnabled(n is not None)
+        self.controller.set_enabled((p is not None, c is not None, n is not None))
+        pprint([p, c, n])
 
-    @Slot(bool)
-    def set_playing(self, b):
-        if b:
-            self.playing = True
-            self.play_button.setIcon(self.icons.pause_button)
-        else:
-            self.playing = False
-            self.play_button.setIcon(self.icons.play_button)
-
-    @Slot(int)
-    def _update_volume(self, volume: int):
-        self.update_volume.emit(volume / 100)
-
+    # Progress bar
+    @Slot()
     def update_duration_display(self):
-        self.duration_display.setText(f"{self.time}/{self.duration}")
+        self.progress_display.setText(f"{self.time}/{self.duration}")
 
     @Slot(int)
     def length_changed(self, duration: float):
@@ -149,83 +156,50 @@ class PlayerWidget(QWidget):
         self.progress_bar.setValue(int(progress))
         self.update_duration_display()
 
+    # Pause / Play button
+    @Slot()
+    def resume(self):
+        self.audio_player.update_playing(True)
 
-class PlayerDock(QDockWidget):
-    def __init__(self, icons: Icons, fonts: Fonts, parent=None):
-        super().__init__(parent)
-        self.icons = icons
-        self.fonts = fonts
+    @Slot()
+    def pause(self):
+        self.audio_player.update_playing(False)
 
-        self.audio_device = QAudioDevice(QMediaDevices.defaultAudioOutput())
-        self.media_output = QAudioOutput(self.audio_device, self)
-        self.media_player: QMediaPlayer | None = None
-
-        self.controller = PlayerWidget(icons, fonts, self)
-        self.controller.update_playing_status.connect(self.update_playing)
-        self.controller.progress_bar.force_slide.connect(self.move_position)
-        self.controller.update_volume.connect(self.media_output.setVolume)
-        self.tracked_secs = 0
-
-        self.setWidget(self.controller)
-
-    def toggle(self):
-        if self.media_player is not None:
-            cond = not self.media_player.isPlaying()
-            self.update_playing(cond)
-            self.controller.set_playing(cond)
-
-    @Slot(bool)
-    def update_playing(self, b):
-        if self.media_player is not None:
-            if b:
-                self.media_player.play()
-            else:
-                self.media_player.pause()
-
-    @Slot(int)
-    def move_position(self, f: int):
-        if self.media_player is not None:
-            self.media_player.setPosition(int(f))
-
-    def new_media_player(self, stop=True):
-        if stop:
-            self.force_stop()
-        player = QMediaPlayer(self)
-        player.setAudioOutput(self.media_output)
-        player.durationChanged.connect(self.controller.length_changed)
-        player.positionChanged.connect(self.progress_changed)
-        player.playbackStateChanged.connect(self.playback_state_changed)
-        player.mediaStatusChanged.connect(self.media_status_changed)
-        return player
-
-    @Slot(int)
-    def progress_changed(self, ms: int):
-        """Only send progress updates when the difference is noticeable"""
-        if (secs := ms // 1000) != self.tracked_secs:
-            self.tracked_secs = secs
-            self.controller.progress_changed(ms)
-
-    @Slot(QMediaPlayer.PlaybackState)
-    def playback_state_changed(self, state: QMediaPlayer.PlaybackState):
-        ...
-
+    # Audio player
     @Slot(QMediaPlayer.MediaStatus)
     def media_status_changed(self, status: QMediaPlayer.MediaStatus):
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
             self.controller.set_playing(False)
             print("Player finished")
 
-    def play(self, file: Path):
-        # Replace the media player and play it
-        self.media_player = self.new_media_player()
-        self.media_player.setAudioOutput(self.media_output)
-        self.media_player.setSource(QUrl.fromLocalFile(file))
-        self.media_player.play()
-        self.controller.set_playing(True)
 
-    def force_stop(self):
-        if self.media_player is not None:
-            self.media_player.stop()
-            self.media_player.disconnect(self.media_output)
-            self.media_player.disconnect(self.controller)
-            del self.media_player
+class PlayerDock(QDockWidget):
+    def __init__(self, icons: Icons, fonts: Fonts, parent=None):
+        super().__init__(parent)
+        self.player = Player(icons, fonts, self)
+        self.setWidget(self.player)
+
+    # @Slot(int)
+    # def progress_changed(self, ms: int):
+    #     """Only send progress updates when the difference is noticeable"""
+    #     if (secs := ms // 1000) != self.tracked_secs:
+    #         self.tracked_secs = secs
+    #         self.controller.progress_changed(ms)
+
+    def play(self, file: Path):
+        print(f"Playing {file}")
+
+    #     # Replace the media player and play it
+    #     self.media_player = self.new_media_player()
+    #     self.media_player.setAudioOutput(self.media_output)
+    #     self.media_player.setSource(QUrl.fromLocalFile(file))
+    #     self.media_player.play()
+    #     self.controller.set_playing(True)
+
+    def force_stop(self): ...
+
+    #     if self.media_player is not None:
+    #         self.media_player.stop()
+    #         self.media_player.disconnect(self.media_output)
+    #         self.media_player.disconnect(self.controller)
+    #         del self.media_player

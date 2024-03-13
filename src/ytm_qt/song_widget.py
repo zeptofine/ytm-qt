@@ -1,9 +1,7 @@
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from pprint import pprint
 
 from PySide6.QtCore import (
     QEvent,
@@ -23,13 +21,14 @@ from PySide6.QtGui import (
     QPixmap,
 )
 from PySide6.QtWidgets import (
+    QFrame,
     QGridLayout,
-    QGroupBox,
     QLabel,
     QWidget,
 )
 
 from .cache_handlers import CacheItem
+from .dataclasses import SongRequest
 from .dicts import (
     YTMDownloadResponse,
     YTMSmallVideoResponse,
@@ -110,7 +109,7 @@ class ThumbnailLabel(QWidget):
         return super().mousePressEvent(ev)
 
 
-class SongWidget(QGroupBox):
+class SongWidget(QFrame):
     request_icon = Signal(DownloadIcon)
     request_song = Signal(YTMDownload)
     play = Signal()
@@ -130,14 +129,15 @@ class SongWidget(QGroupBox):
         self.setObjectName("SongWidget")
         self.setMouseTracking(True)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
-        self.setMinimumHeight(50)
         self.setContentsMargins(0, 0, 0, 0)
+        self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
 
         self._selected = False
 
         self.layout_ = QGridLayout(self)
         self.layout_.setContentsMargins(0, 0, 0, 0)
-        self.data_ = data
+        self.metadata = data
+
         self.cache = cache
         self.fonts = fonts or Fonts.get()
         self.icons = white_icons or Icons.get("white")
@@ -145,25 +145,29 @@ class SongWidget(QGroupBox):
         self.thumbnail_path = cache.thumbnail
         self.thumbnail_label = ThumbnailLabel(self.icons, playable, self)
 
-        self.data_title = self.data_["title"]
+        self.data_title = self.metadata["title"]
         self.title_label = ElidedTextLabel(text=self.data_title, parent=self)
         self.thumbnail_requested = False
         self.title_label.setFont(self.fonts.playlist_entry_title)
-        self.duration = timedelta(seconds=int(self.data_["duration"]))
-        self.author_and_duration_label = QLabel(f"{self.data_["channel"]} - {self.duration}", parent=self)
+        self.duration = timedelta(seconds=int(self.metadata["duration"]))
+        self.author_and_duration_label = QLabel(f"{self.metadata["channel"]} - {self.duration}", parent=self)
         self.author_and_duration_label.setFont(self.fonts.playlist_entry_author)
         self.layout_.addWidget(self.thumbnail_label, 0, 0, 2, 1)
         self.layout_.addWidget(self.title_label, 0, 1)
         self.layout_.addWidget(self.author_and_duration_label, 1, 1)
 
         self.thumbnail = max(
-            self.data_["thumbnails"],
+            self.metadata["thumbnails"],
             key=lambda d: (
                 d.get("height"),
                 d.get("width"),
                 d.get("preference"),
             ),
         )
+
+    @property
+    def request(self):
+        return SongRequest(self.metadata)
 
     @classmethod
     def from_dct(cls, dct: YTMSmallVideoResponse, cache: CacheItem, parent=None):
@@ -187,7 +191,7 @@ class SongWidget(QGroupBox):
     def start_drag(self):
         drag = QDrag(self)
         mime = QMimeData()
-        mime.setText(json.dumps(self.data_))
+        mime.setText(json.dumps(self.metadata))
         drag.setMimeData(mime)
 
         pixmap = QPixmap(self.size())
@@ -209,7 +213,7 @@ class SongWidget(QGroupBox):
             self.setStyleSheet("")
 
     def _request_song(self):
-        request = YTMDownload(QUrl(self.data_["url"]), parent=self)
+        request = YTMDownload(QUrl(self.metadata["url"]), parent=self)
         request.processed.connect(self._song_gathered)
         self.request_song.emit(request)
 
@@ -218,6 +222,7 @@ class SongWidget(QGroupBox):
         download = response["requested_downloads"][0]
         path = Path(download["filepath"])
         path.replace(self.cache.audio)
+        print(f"Moved {path} to {self.cache.audio}")
 
         self.cache.audio_format = download["audio_ext"]
         self.cache.metadata = {

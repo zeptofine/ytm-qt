@@ -6,12 +6,13 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Signal
 from PySide6.QtGui import Qt
 from PySide6.QtWidgets import QFrame, QGridLayout, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+
 from ytm_qt.threads.download_icons import DownloadIcon
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from ..cache_handlers import CacheHandler
+    from ytm_qt import CacheHandler
 
 
 class ListView[T: QWidget](QWidget):

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from abc import abstractmethod
 from functools import partial
+from typing import overload
 
 from PySide6.QtCore import (
     QPoint,
@@ -29,16 +30,18 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
-    QVBoxLayout,
     QWidget,
 )
 
-from ytm_qt import CacheHandler, Icons, SongWidget
+from ytm_qt import CacheHandler, Icons
+from ytm_qt.dataclasses import OperationRequest, SongRequest
 from ytm_qt.dicts import YTMSmallVideoResponse
+from ytm_qt.song_widget import SongWidget
 from ytm_qt.threads.download_icons import DownloadIcon
 from ytm_qt.threads.ytdlrunner import YTMDownload
 
 from . import operation_settings
+from .plist_widget import PListWidget
 from .song_ops import (
     InfiniteLoopType,
     LoopNTimes,
@@ -64,6 +67,7 @@ class OperationWrapper(QWidget):
         self.setAcceptDrops(True)
         self.setMouseTracking(True)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+
         self.resizable = resizable
         self.icons = icons
 
@@ -71,7 +75,9 @@ class OperationWrapper(QWidget):
         self.previous_position = None
 
         self.cache_handler = None
-        self.widgets: list[OperationWrapper | SongWidget] = []
+        self.widgets: PListWidget[OperationWrapper | SongWidget] = PListWidget()
+        self.widgets.setContentsMargins(10, 0, 0, 0)
+        self.widgets.setSpacing(0)
 
         self.mode: type[SongOperation] = PlayOnce
         self.mode_settings = operation_settings.get(self.mode).from_kwargs({})
@@ -106,19 +112,8 @@ class OperationWrapper(QWidget):
         for label, (icon, _) in self.modes.items():
             self.mode_dropdown.addItem(icon, label)
 
-        self.add_group_button = QPushButton(self)
-        self.add_group_button.setText("+ Add group")
-        self.add_group_button.clicked.connect(self.add_group)
-        self.generate_button = QPushButton(self)
-        self.generate_button.setText("Generate")
-        self.generate_button.clicked.connect(self.validate_operations)
-
         self._layout.addWidget(self.mode_dropdown, 0, 0)
         self._layout.addLayout(self.mode_settings_holder, 1, 0)
-
-        self.box = QVBoxLayout()
-        self.box.setContentsMargins(10, 0, 0, 0)
-        self.box.setSpacing(0)
 
         self.tree: tuple[OperationWrapper, ...]
         if isinstance(parent, OperationWrapper):
@@ -130,7 +125,7 @@ class OperationWrapper(QWidget):
             self.addAction(ungroup_action)
 
             widget = QFrame(self)
-            widget.setLayout(self.box)
+            widget.setLayout(self.widgets)
             widget.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
             widget.setMinimumHeight(30)
             self._layout.addWidget(widget)
@@ -140,7 +135,7 @@ class OperationWrapper(QWidget):
 
             scroll_widget = QWidget(self)
             scroll_widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum)
-            scroll_widget.setLayout(self.box)
+            scroll_widget.setLayout(self.widgets)
             scroll_area = QScrollArea(self)
             scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             scroll_area.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
@@ -151,15 +146,16 @@ class OperationWrapper(QWidget):
     def add_item(self, widget: OperationWrapper | SongWidget, idx=None):
         if idx is None:
             self.widgets.append(widget)
-            self.box.addWidget(widget)
         else:
             self.widgets.insert(idx, widget)
-            self.box.insertWidget(idx, widget)
         self._add_connections(widget)
 
     @abstractmethod
     def _add_connections(self, widget: OperationWrapper | SongWidget):
         if isinstance(widget, SongWidget):
+            widget.request_icon.connect(self.request_new_icon)
+            widget.request_song.connect(self.request_song)
+            widget.set_icon()
             widget.clicked.connect(partial(self.widget_clicked, widget))
             del_action = QAction(text="Delete", parent=self)
             del_action.triggered.connect(partial(self.remove_item, widget))
@@ -169,11 +165,10 @@ class OperationWrapper(QWidget):
         else:
             widget.ungroup_signal.connect(partial(self.subwidget_ungrouped, widget))
 
-    def remove_item(self, item: OperationWrapper | SongWidget, hide=True):
-        self.widgets.remove(item)
-        self.box.removeWidget(item)
-        if hide:
-            item.hide()
+    def remove_item(self, widget: OperationWrapper | SongWidget):
+        self.widgets.remove(widget)
+        widget.setParent(None)
+        print(f"Removed {widget}")
 
     def move_item(self, item: OperationWrapper | SongWidget, direction: int):
         """Moves an item in the box to a new position.
@@ -183,20 +178,18 @@ class OperationWrapper(QWidget):
             item (OperationWrapper | SongWidget): The item to move
             direction (int): The direction of the move (ex. 1 for forward, -1 for backward)
         """
-        index: int = self.box.indexOf(item)
+        index: int = self.widgets.index(item)
         if index == -1 or direction == 0:
             return
 
-        new_index = min(max(index + direction, 0), self.box.count())
+        new_index = min(max(index + direction, 0), len(self.widgets))
         if index == new_index:
             return
 
-        self.box.insertWidget(new_index, item)
         self.widgets.insert(new_index, self.widgets.pop(index))
 
     def clear(self):
-        for song in self.widgets.copy():
-            self.remove_item(song)
+        self.widgets.clear()
 
     def set_cache_handler(self, ch: CacheHandler):
         self.cache_handler = ch
@@ -220,7 +213,7 @@ class OperationWrapper(QWidget):
         self.ungroup_signal.emit()
 
     def subwidget_ungrouped(self, w: OperationWrapper):
-        idx = self.box.indexOf(w)
+        idx = self.widgets.index(w)
         widgets = w.widgets
         self.remove_item(w)
         for widget in widgets:
@@ -291,7 +284,7 @@ class OperationWrapper(QWidget):
         wrapper = OperationWrapper(self.icons, resizable=True, parent=self)
         idx = self.widgets.index(widget)
         self.remove_item(widget)
-        wrapper.add_item(widget)
+        wrapper.add_song(widget.request)
         self.add_item(wrapper, idx)
 
     def widget_clicked(self, widget: SongWidget | OperationWrapper):
@@ -345,6 +338,14 @@ class OperationWrapper(QWidget):
         else:
             event.accept()
 
+    @property
+    def request(self) -> OperationRequest:
+        return OperationRequest(
+            self.mode,
+            self.mode_settings.get_kwargs(),
+            [song.request for song in self.widgets],
+        )
+
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
         event.accept()
 
@@ -358,11 +359,8 @@ class OperationWrapper(QWidget):
 
         n = self._find_drop_position(event.position())
         if not tree:  # tree must be ()
-            item = self.create_item(json.loads(mimedata.text()))
-            item.request_icon.connect(self.request_new_icon)
-            item.request_song.connect(self.request_song)
-            item.set_icon()
-            if n > self.box.count():
+            item = self.create_item(SongRequest(json.loads(mimedata.text())))
+            if n > len(self.widgets):
                 n = None
             self.add_item(item, idx=n)
 
@@ -370,32 +368,47 @@ class OperationWrapper(QWidget):
             parent = tree[-1]
             n = max(min(n, len(self.widgets) - 1), 0)
             if parent is not self:
-                parent.remove_item(source, hide=False)
-                self.widgets.insert(n, source)
+                parent.remove_item(source)
+                self.add_item(self.create_item(source.request, playable=True), n)
+                # parent.widgets.remove(source)
+                # self.widgets.insert(n, source)
             else:
-                self.widgets.remove(source)
+                self.widgets.widgets.remove(source)
                 self.widgets.insert(n, source)
-
-            self.box.insertWidget(n, source)
 
         event.accept()
 
-    def create_item(self, response: YTMSmallVideoResponse, playable=True) -> SongWidget:
-        assert self.cache_handler is not None
-        return SongWidget(response, self.cache_handler[response["id"]], playable=playable)
+    @overload
+    def create_item(self, response: SongRequest, playable=True) -> SongWidget: ...
 
-    def add_song(self, response: YTMSmallVideoResponse):
+    @overload
+    def create_item(self, response: OperationRequest, playable=True) -> OperationWrapper: ...
+
+    def create_item(self, response: SongRequest | OperationRequest, playable=True) -> SongWidget | OperationWrapper:
+        assert self.cache_handler is not None
+        if isinstance(response, OperationRequest):
+            ow = OperationWrapper(self.icons, resizable=False, parent=self)
+            ow.mode = response.data_type
+            for song in response.songs:
+                ow.add_song(song)
+            return ow
+
+        return SongWidget(
+            response.data,
+            self.cache_handler[response.data["id"]],
+            playable=playable,
+            parent=self.tree[0],
+        )
+
+    def add_song(self, response: SongRequest | OperationRequest):
         item = self.create_item(response)
-        item.request_icon.connect(self.request_new_icon)
-        item.request_song.connect(self.request_song)
-        item.set_icon()
         self.add_item(item)
 
     def _find_drop_position(self, p: QPointF | QPoint) -> int:
         n = -1
-        for n in range(self.box.count()):
+        for n in range(len(self.widgets)):
             # Get the widget at each index in turn.
-            w = self.box.itemAt(n).widget()
+            w = self.widgets[n]
             if p.y() <= w.geometry().center().y():
                 # We didn't drag past this widget.
                 # insert above it.
