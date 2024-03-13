@@ -1,12 +1,13 @@
 [project]
 authors = [{ name = "zeptofine", email = "xpsychonauticonx@gmail.com" }]
 dependencies = [
-  "pyside6>=6.6.2",
-  "yt-dlp>=2023.12.30",
-  "requests>=2.31.0",
-  "pillow>=10.2.0",
-  "materialyoucolor>=2.0.7",
-  "validators>=0.22.0",
+    "pyside6>=6.6.2",
+    "yt-dlp>=2023.12.30",
+    "requests>=2.31.0",
+    "pillow>=10.2.0",
+    "materialyoucolor>=2.0.7",
+    "validators>=0.22.0",
+    "darkdetect>=0.8.0",
 ]
 description = "Default template for PDM package"
 license = { text = "MIT" }
