@@ -4,7 +4,10 @@ from abc import abstractmethod
 from collections.abc import Generator
 from dataclasses import dataclass
 from enum import Enum
+from functools import cache
 from typing import ClassVar
+
+from ytm_qt.icons import Icons
 
 
 class InfiniteLoopType(Enum):
@@ -89,6 +92,14 @@ class LoopNTimes[T](RecursiveSongOperation[T]):
                 yield from song.get()
 
 
+@dataclass
+class Stretch(LoopNTimes):
+    def get(self):
+        for song in self.songs:
+            for _ in range(self.times):
+                yield from song.get()
+
+
 class LoopWholeList(RecursiveSongOperation):
     no_return = InfiniteLoopType.ALWAYS
 
@@ -116,3 +127,15 @@ class RandomPlayForever(RandomPlay):
     def get(self):
         while True:
             yield random.choice(self.songs).get()
+
+
+@cache
+def get_mode_icons(icons: Icons):
+    return {
+        PlayOnce: icons.play_button,
+        LoopNTimes: icons.repeat_one,
+        Stretch: icons.pan_zoom,
+        LoopWholeList: icons.repeat_bold,
+        RandomPlay: icons.shuffle,
+        RandomPlayForever: icons.shuffle_bold,
+    }

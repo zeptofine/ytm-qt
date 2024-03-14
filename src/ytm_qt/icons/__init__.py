@@ -12,7 +12,7 @@ def get_color(color: str) -> QColor:
     return QColor(color)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Icons:
     play_button: QIcon
     pause_button: QIcon
@@ -32,6 +32,7 @@ class Icons:
     c_down: QIcon
     c_left: QIcon
     c_right: QIcon
+    pan_zoom: QIcon
 
     @classmethod
     @cache
@@ -66,6 +67,7 @@ class Icons:
             c_down=garrows("chevron_down.svg"),
             c_left=garrows("chevron_left.svg"),
             c_right=garrows("chevron_right.svg"),
+            pan_zoom=google("pan_zoom.svg"),
         )
 
 

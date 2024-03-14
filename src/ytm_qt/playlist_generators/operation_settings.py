@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QHBoxLayout, QSpinBox, QWidget
 from .song_ops import (
     LoopNTimes,
     SongOperation,
+    Stretch,
 )
 
 
@@ -46,6 +47,7 @@ class LNTSettings(OperationSettings):
 
 __ops: dict[type[SongOperation], type[OperationSettings]] = {
     LoopNTimes: LNTSettings,
+    Stretch: LNTSettings,
 }
 
 

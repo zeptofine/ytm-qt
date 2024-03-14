@@ -61,6 +61,7 @@ from .song_ops import (
     RecursiveSongOperation,
     SinglePlay,
     SongOperation,
+    get_mode_icons,
 )
 from .track_manager import TrackManager
 
@@ -112,13 +113,7 @@ class OperationWrapper(QWidget):
         self.addAction(self.generate_action)
         self.addAction(self.clear_action)
 
-        self.modes: dict[type[SongOperation], QIcon] = {
-            PlayOnce: icons.play_button,
-            LoopNTimes: icons.repeat_one,
-            LoopWholeList: icons.repeat_bold,
-            RandomPlay: icons.shuffle,
-            RandomPlayForever: icons.shuffle_bold,
-        }
+        self.modes = get_mode_icons(icons)
         self._mode_keys = {k.key(): k for k in self.modes}
 
         self.mode_dropdown = QComboBox()
