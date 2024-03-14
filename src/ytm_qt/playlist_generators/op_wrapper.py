@@ -50,7 +50,7 @@ from ytm_qt.threads.download_icons import DownloadIcon
 from ytm_qt.threads.ytdlrunner import YTMDownload
 
 from . import operation_settings
-from .plist_widget import PListWidget
+from .plist_widget import PListLayout
 from .song_ops import (
     InfiniteLoopType,
     LoopNTimes,
@@ -84,7 +84,7 @@ class OperationWrapper(QWidget):
         self.previous_position = None
 
         self.cache_handler = None
-        self.widgets: PListWidget[OperationWrapper | SongWidget] = PListWidget()
+        self.widgets: PListLayout[OperationWrapper | SongWidget] = PListLayout()
         self.widgets.setContentsMargins(0, 0, 0, 0)
         self.widgets.setSpacing(0)
 
@@ -105,9 +105,12 @@ class OperationWrapper(QWidget):
         self.group_action.setShortcut(self.group_hotkey)
         self.generate_action = QAction(text="Generate", parent=self)
         self.generate_action.triggered.connect(self.validate_operations)
+        self.clear_action = QAction(text="Clear", parent=self)
+        self.clear_action.triggered.connect(self.clear)
 
         self.addAction(self.add_group_action)
         self.addAction(self.generate_action)
+        self.addAction(self.clear_action)
 
         self.modes: dict[type[SongOperation], QIcon] = {
             PlayOnce: icons.play_button,
@@ -119,6 +122,7 @@ class OperationWrapper(QWidget):
         self._mode_keys = {k.key(): k for k in self.modes}
 
         self.mode_dropdown = QComboBox()
+        self.mode_dropdown.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
         self.mode_dropdown.currentTextChanged.connect(self.change_mode)
         for operation, icon in self.modes.items():
             self.mode_dropdown.addItem(icon, operation.key())
@@ -135,10 +139,11 @@ class OperationWrapper(QWidget):
             ungroup_action.triggered.connect(self.ungroup_self)
             self.addAction(ungroup_action)
 
-            widget = QFrame(self)
+            widget = QWidget(self)
             widget.setLayout(self.widgets)
-            widget.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
+            widget.setContentsMargins(5, 0, 0, 0)
             widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Maximum)
+            widget.setMinimumWidth(300)
             self._layout.addWidget(widget, 1, 0, 1, 2)
         else:
             self.tree = (self,)
@@ -147,12 +152,13 @@ class OperationWrapper(QWidget):
             scroll_widget = QWidget(self)
             scroll_widget.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum)
             scroll_widget.setLayout(self.widgets)
+
             scroll_area = QScrollArea(self)
-            scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            # scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
             scroll_area.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
             scroll_area.setWidgetResizable(True)
             scroll_area.setWidget(scroll_widget)
-            self._layout.addWidget(scroll_area, 1, 0, 1, 3)
+            self._layout.addWidget(scroll_area, 1, 0, 1, 2)
 
     @Slot(str)
     def change_mode(self, t: str, kwargs: dict | None = None):
@@ -218,6 +224,8 @@ class OperationWrapper(QWidget):
         self.widgets.insert(new_index, self.widgets.pop(index))
 
     def clear(self):
+        for widget in self.widgets:
+            widget.setParent(None)
         self.widgets.clear()
 
     def set_cache_handler(self, ch: CacheHandler | None):
@@ -388,8 +396,7 @@ class OperationWrapper(QWidget):
         mimedata = event.mimeData()
         source: SongWidget | OperationWrapper = event.source()  # type: ignore
         tree = self.find_parent(source)
-        print(source)
-        print(tree)
+
         n = self._find_drop_position(event.position())
         if not tree:  # tree must be ()
             item = self.create_item(SongRequest(json.loads(mimedata.text())))
@@ -423,7 +430,6 @@ class OperationWrapper(QWidget):
         assert self.cache_handler is not None
         if isinstance(response, OperationRequest):
             ow = OperationWrapper(self.icons, resizable=False, parent=self)
-            print(response.data_type)
             ow.change_mode(response.data_type.key(), kwargs=response.data_config)
             ow.set_cache_handler(self.cache_handler)
 

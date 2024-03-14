@@ -5,7 +5,7 @@ from typing import Self
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
 
-class PListWidget[T: QWidget](QVBoxLayout):
+class PListLayout[T: QWidget](QVBoxLayout):
     def __init__(self, widgets: list[T] | None = None, parent: QWidget | None = None):
         if parent is not None:
             super().__init__(parent=parent)
