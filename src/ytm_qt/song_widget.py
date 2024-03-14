@@ -79,6 +79,7 @@ class ThumbnailLabel(QWidget):
         self.setFixedSize(50, 50)
 
         self.icons = icons
+
         self.label = QLabel(self)
         self.label.setFixedSize(50, 50)
         self.playable = playable
@@ -122,7 +123,7 @@ class SongWidget(QFrame):
         cache: CacheItem,
         /,
         playable: bool = False,
-        white_icons: Icons | None = None,
+        icons: Icons | None = None,
         fonts: Fonts | None = None,
         parent=None,
     ):
@@ -142,7 +143,7 @@ class SongWidget(QFrame):
 
         self.cache = cache
         self.fonts = fonts or Fonts.get()
-        self.icons = white_icons or Icons.get("white")
+        self.icons = icons or Icons.get()
 
         self.thumbnail_path = cache.thumbnail
         self.thumbnail_label = ThumbnailLabel(self.icons, playable, self)
@@ -183,6 +184,8 @@ class SongWidget(QFrame):
             self.thumbnail_requested = False
         elif not self.thumbnail_requested:
             self.thumbnail_requested = True
+            self.thumbnail_label.setPixmap(self.icons.more_horiz.pixmap(50, 50))
+
             self.download_task = DownloadIcon(QUrl(self.thumbnail["url"]), self.thumbnail_path)
             self.download_task.finished.connect(self.set_icon)
             self.request_icon.emit(self.download_task)

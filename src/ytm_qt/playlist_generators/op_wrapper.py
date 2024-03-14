@@ -305,32 +305,7 @@ class OperationWrapper(QWidget):
 
     def widget_clicked(self, widget: SongWidget | OperationWrapper):
         print(widget)
-        # if self.first_selected is None:
-        #     self.selected_widgets = [widget]
-        #     self.first_selected = widget
-        # elif self.first_selected is not widget.selected:
-        #     mod = QApplication.keyboardModifiers()
-        #     if mod & Qt.KeyboardModifier.ShiftModifier:
-        #         ...
-        #     else:
-        #         for widget_ in self.selected_widgets:
-        #             widget_.selected = False
-
-        # widget.selected = True
-        # if not widget.selected or mod & Qt.KeyboardModifier.ShiftModifier:
-        #     if self.first_selected is not None and self.first_selected in self.widgets:
-        #         start_idx = self.widgets.index(self.first_selected)
-        #         for widget_ in self.widgets[start_idx : self.widgets.index(widget)]:
-        #             widget_.selected = True
-        #             self.selected_widgets.append(widget)
-        #     else:
-        #         for widget_ in self.selected_widgets:
-        #             widget_.selected = False
-        #         self.first_selected = widget
-        #         widget.selected = True
-        #         print("Is first selected")
-        # else:
-        #     ...
+        # Tell the controller to skip to this widget
 
     @property
     def selected(self):
@@ -435,6 +410,7 @@ class OperationWrapper(QWidget):
         return SongWidget(
             response.data,
             self.cache_handler[response.data["id"]],
+            icons=self.icons,
             playable=playable,
             parent=self.tree[0],
         )

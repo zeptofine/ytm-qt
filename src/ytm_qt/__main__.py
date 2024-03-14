@@ -125,6 +125,7 @@ class MainWindow(QMainWindow):
         self.playlist_dock = PlaylistDock(
             cache_handler=self.cache,
             playlist=self.playlist_view,
+            icons=self.icons,
             parent=self,
         )
         self.playlist_view.add_to_queue.connect(self.playlist_song_clicked)

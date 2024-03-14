@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QProgressBar,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QSlider,
     QSpacerItem,
     QToolButton,
@@ -64,18 +66,21 @@ class Player(QWidget):
         self.time = timedelta(milliseconds=0)
         self.duration = timedelta(milliseconds=0)
         self.progress_bar = TrackedSlider(Qt.Orientation.Horizontal, self)
-        self.progress_bar.force_slide.connect(lambda x: print(f"Force slid: {x}"))
+        self.progress_bar.force_slide.connect(self.change_position)
         self.progress_display = QLabel(self)
+        self.progress_display.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.update_duration_display()
 
         self.manager = None
         self.audio_player = AudioPlayer(QMediaDevices.defaultAudioOutput())  # TODO: Make this configurable
-        self.audio_player.duration_changed.connect(self.progress_bar.setMaximum)
-        self.audio_player.progress_changed.connect(self.progress_bar.setValue)
+        self.audio_player.duration_changed.connect(self.duration_changed)
+        self.audio_player.progress_changed.connect(self.progress_changed)
         self.audio_player.progress_changed.connect(self.update_duration_display)
         self.audio_player.mediastatus_changed.connect(self.media_status_changed)
 
         self.volume_slider = QSlider(Qt.Orientation.Horizontal, self)
+        self.volume_slider.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
+        self.volume_slider.setMinimumWidth(150)
         self.volume_slider.setMaximum(100)
         self.volume_slider.setMinimum(0)
         self.volume_slider.valueChanged.connect(lambda v: self.audio_player.media_output.setVolume(v / 100))
@@ -84,14 +89,20 @@ class Player(QWidget):
         self.current_label = QLabel(self)
         self.next_label = QLabel(self)
 
-        self.layout_ = QGridLayout(self)
-        self.layout_.addWidget(self.previous_label, 0, 0, 1, 3)
-        self.layout_.addWidget(self.current_label, 1, 0, 1, 3)
-        self.layout_.addWidget(self.next_label, 2, 0, 1, 3)
-        self.layout_.addWidget(self.controller, 3, 0, 2, 1)
-        self.layout_.addWidget(self.progress_bar, 3, 1, 1, 3)
-        self.layout_.addWidget(self.progress_display, 4, 1)
-        self.layout_.addWidget(self.volume_slider, 4, 3)
+        self.sublayout = QGridLayout()
+        self.sublayout.setSpacing(2)
+        self.sublayout.addWidget(self.previous_label, 0, 0, 1, 3)
+        self.sublayout.addWidget(self.current_label, 1, 0, 1, 3)
+        self.sublayout.addWidget(self.next_label, 2, 0, 1, 3)
+        self.sublayout.addWidget(self.progress_bar, 3, 0, 1, 4)
+        self.sublayout.addWidget(self.controller, 4, 0, 1, 1)
+        self.sublayout.addWidget(self.progress_display, 4, 1)
+        self.sublayout.addWidget(self.volume_slider, 4, 3)
+
+        self.layout_ = QVBoxLayout(self)
+        self.layout_.setSpacing(0)
+        self.layout_.addWidget(self.progress_bar)
+        self.layout_.addLayout(self.sublayout)
 
     # Track manager
     @Slot(TrackManager)
@@ -160,10 +171,15 @@ class Player(QWidget):
         self.progress_display.setText(f"{self.time}/{self.duration}")
 
     @Slot(int)
-    def length_changed(self, duration: float):
+    def duration_changed(self, duration: float):
         self.duration = timedelta(milliseconds=int(duration))
         self.progress_bar.setMaximum(int(duration))
         self.update_duration_display()
+
+    @Slot(int)
+    def change_position(self, position: int):
+        print(f"Force slid: {position}")
+        self.audio_player.change_position(position)
 
     @Slot(int)
     def progress_changed(self, progress: int):
