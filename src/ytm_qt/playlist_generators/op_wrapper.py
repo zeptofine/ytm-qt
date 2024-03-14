@@ -85,7 +85,7 @@ class OperationWrapper(QWidget):
 
         self.cache_handler = None
         self.widgets: PListWidget[OperationWrapper | SongWidget] = PListWidget()
-        self.widgets.setContentsMargins(10, 0, 0, 0)
+        self.widgets.setContentsMargins(0, 0, 0, 0)
         self.widgets.setSpacing(0)
 
         self.mode: type[SongOperation] = PlayOnce
@@ -109,19 +109,21 @@ class OperationWrapper(QWidget):
         self.addAction(self.add_group_action)
         self.addAction(self.generate_action)
 
-        self.modes: dict[str, tuple[QIcon, type[SongOperation]]] = {
-            "Play once": (icons.play_button, PlayOnce),
-            "Loop N times": (icons.repeat_one, LoopNTimes),
-            "Loop": (icons.repeat_bold, LoopWholeList),
-            "Random": (icons.shuffle, RandomPlay),
-            "Random forever": (icons.shuffle_bold, RandomPlayForever),
+        self.modes: dict[type[SongOperation], QIcon] = {
+            PlayOnce: icons.play_button,
+            LoopNTimes: icons.repeat_one,
+            LoopWholeList: icons.repeat_bold,
+            RandomPlay: icons.shuffle,
+            RandomPlayForever: icons.shuffle_bold,
         }
-        self.mode_dropdown = QComboBox()
-        self.mode_dropdown.currentTextChanged.connect(self.mode_changed)
-        for label, (icon, _) in self.modes.items():
-            self.mode_dropdown.addItem(icon, label)
+        self._mode_keys = {k.key(): k for k in self.modes}
 
-        self._layout.addWidget(self.mode_dropdown, 0, 0)
+        self.mode_dropdown = QComboBox()
+        self.mode_dropdown.currentTextChanged.connect(self.change_mode)
+        for operation, icon in self.modes.items():
+            self.mode_dropdown.addItem(icon, operation.key())
+
+        self._layout.addWidget(self.mode_dropdown, 0, 0, 1, 1)
         self._layout.addLayout(self.mode_settings_holder, 0, 1)
 
         self.tree: tuple[OperationWrapper, ...]
@@ -136,7 +138,7 @@ class OperationWrapper(QWidget):
             widget = QFrame(self)
             widget.setLayout(self.widgets)
             widget.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
-            widget.setMinimumHeight(30)
+            widget.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Maximum)
             self._layout.addWidget(widget, 1, 0, 1, 2)
         else:
             self.tree = (self,)
@@ -150,7 +152,25 @@ class OperationWrapper(QWidget):
             scroll_area.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Sunken)
             scroll_area.setWidgetResizable(True)
             scroll_area.setWidget(scroll_widget)
-            self._layout.addWidget(scroll_area, 1, 0, 1, 2)
+            self._layout.addWidget(scroll_area, 1, 0, 1, 3)
+
+    @Slot(str)
+    def change_mode(self, t: str, kwargs: dict | None = None):
+        kwargs = kwargs if kwargs is not None else {}
+        mode = self._mode_keys[t]
+        self.mode = mode
+
+        # TODO: Save these after a saving system has been implemented
+        #                                                             vv
+        new_mode_settings = operation_settings.get(mode)
+        if new_mode_settings is not type(self.mode_settings):  # intentionally subclass non-inclusive
+            self.mode_settings.deleteLater()
+            self.mode_settings = new_mode_settings.from_kwargs(kwargs, self)
+            self.mode_settings_holder.removeWidget(self.mode_settings)
+            self.mode_settings_holder.addWidget(self.mode_settings)
+
+        if self.mode_dropdown.currentText() != t:
+            self.mode_dropdown.setCurrentText(t)
 
     def add_item(self, widget: OperationWrapper | SongWidget, idx=None):
         if idx is None:
@@ -202,21 +222,6 @@ class OperationWrapper(QWidget):
 
     def set_cache_handler(self, ch: CacheHandler | None):
         self.cache_handler = ch
-
-    def switch_mode(self, m: type[SongOperation]):
-        self.mode = m
-
-    @Slot(str)
-    def mode_changed(self, t: str):
-        mode = self.modes[t][1]
-        self.mode = mode
-
-        self.mode_settings_holder.removeWidget(self.mode_settings)
-        self.mode_settings.deleteLater()
-        # TODO: Save these after a saving system has been implemented
-        #                                                             vv
-        self.mode_settings = operation_settings.get(mode).from_kwargs({}, self)
-        self.mode_settings_holder.addWidget(self.mode_settings)
 
     def ungroup_self(self):
         self.ungroup_signal.emit()
@@ -418,8 +423,10 @@ class OperationWrapper(QWidget):
         assert self.cache_handler is not None
         if isinstance(response, OperationRequest):
             ow = OperationWrapper(self.icons, resizable=False, parent=self)
-            ow.mode = response.data_type
+            print(response.data_type)
+            ow.change_mode(response.data_type.key(), kwargs=response.data_config)
             ow.set_cache_handler(self.cache_handler)
+
             for song in response.songs:
                 ow.add_song(song)
             return ow

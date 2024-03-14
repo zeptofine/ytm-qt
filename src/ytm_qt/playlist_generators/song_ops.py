@@ -18,7 +18,11 @@ class SongOperation[T]:
 
     @classmethod
     def key(cls):
-        return cls.__name__.lower()
+        return cls.__name__
+
+    @classmethod
+    def lkey(cls):
+        return cls.key().lower()
 
     @abstractmethod
     def get(self) -> Generator[T, None, None]: ...

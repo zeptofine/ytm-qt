@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Self
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QSpinBox, QWidget
 
 from .song_ops import (
@@ -10,6 +11,9 @@ from .song_ops import (
 
 
 class OperationSettings(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
     @abstractmethod
     def get_kwargs(self) -> dict:
         return {}
@@ -25,6 +29,7 @@ class LNTSettings(OperationSettings):
         super().__init__(parent)
         self.counter = QSpinBox(self)
         self.layout_ = QHBoxLayout(self)
+        self.layout_.setContentsMargins(0, 0, 10, 0)
         self.layout_.addWidget(self.counter)
 
     def get_kwargs(self):
