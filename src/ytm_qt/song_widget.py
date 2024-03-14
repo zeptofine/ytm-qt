@@ -112,6 +112,7 @@ class ThumbnailLabel(QWidget):
 class SongWidget(QFrame):
     request_icon = Signal(DownloadIcon)
     request_song = Signal(YTMDownload)
+    song_gathered = Signal(Path)
     play = Signal()
     clicked = Signal()
 
@@ -233,6 +234,8 @@ class SongWidget(QFrame):
             "duration": response["duration"],
             "artist": response["channel"],
         }
+
+        self.song_gathered.emit(self.cache.audio)
 
     @property
     def filepath(self):

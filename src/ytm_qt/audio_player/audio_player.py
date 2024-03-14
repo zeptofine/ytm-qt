@@ -27,10 +27,10 @@ class AudioPlayer(QObject):
             self.force_stop()
         player = QMediaPlayer(self)
         player.setAudioOutput(self.media_output)
-        player.durationChanged.connect(self.duration_changed)
-        player.positionChanged.connect(self.progress_changed)
-        player.playbackStateChanged.connect(self.playback_changed)
-        player.mediaStatusChanged.connect(self.mediastatus_changed)
+        player.durationChanged.connect(self.duration_changed.emit)
+        player.positionChanged.connect(self.progress_changed.emit)
+        player.playbackStateChanged.connect(self.playback_changed.emit)
+        player.mediaStatusChanged.connect(self.mediastatus_changed.emit)
         return player
 
     def force_stop(self):

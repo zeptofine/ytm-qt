@@ -99,14 +99,22 @@ class Player(QWidget):
         print(m)
         self.manager = m
         self.move_next()
+        self.try_play()
+
+    def try_play(self):
+        if self.manager is not None and self.manager.current_song is not None:
+            if self.manager.current_song.filepath.exists():
+                self.play(self.manager.current_song.filepath)
+            else:
+                self.manager.current_song.song_gathered.connect(self.play)
+                self.manager.current_song.ensure_audio_exists()
 
     def move_next(self):
         assert self.manager is not None
         try:
             self.manager.move_next()
             self.update_text()
-            if self.manager.current_song is not None:
-                self.manager.current_song.ensure_audio_exists()
+            self.try_play()
             if (n := self.manager.get_next()) is not None:
                 n.ensure_audio_exists()
 
@@ -119,10 +127,18 @@ class Player(QWidget):
         assert self.manager is not None
         self.manager.move_previous()
         self.update_text()
-        if self.manager.current_song is not None:
-            self.manager.current_song.ensure_audio_exists()
+        self.try_play()
         if (p := self.manager.get_previous()) is not None:
             p.ensure_audio_exists()
+
+    @Slot(Path)
+    def play(self, p: Path):
+        if (
+            self.manager is not None
+            and self.manager.current_song is not None
+            and self.manager.current_song.filepath == p
+        ):
+            self.audio_player.play(p)
 
     @Slot()
     def update_text(self):
