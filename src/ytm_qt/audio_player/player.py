@@ -59,7 +59,7 @@ class Player(QWidget):
 
         self.controller = ControlButtons(self.icons, parent=self)
         self.controller.next.connect(self.move_next)
-        self.controller.play.connect(self.resume)
+        self.controller.play.connect(self.toggle_playing)
         self.controller.pause.connect(self.pause)
         self.controller.back.connect(self.move_previous)
 
@@ -77,6 +77,7 @@ class Player(QWidget):
         self.audio_player.progress_changed.connect(self.progress_changed)
         self.audio_player.progress_changed.connect(self.update_duration_display)
         self.audio_player.mediastatus_changed.connect(self.media_status_changed)
+        self.audio_player.playback_changed.connect(self.playbackstate_changed)
 
         self.volume_slider = QSlider(Qt.Orientation.Horizontal, self)
         self.volume_slider.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
@@ -155,15 +156,17 @@ class Player(QWidget):
     def update_text(self):
         assert self.manager is not None
         p = self.manager.get_previous()
-        self.previous_label.setText(f"last: {p.data_title if p is not None else 'None'}")
-        self.previous_label.setEnabled(p is not None)
         c = self.manager.current_song
-        self.current_label.setText(f"now: {c.data_title  if c is not None else 'None'}")
         n = self.manager.get_next()
-        self.next_label.setText(f"next: {n.data_title  if n is not None else 'None'}")
-        self.next_label.setEnabled(n is not None)
-        self.controller.set_enabled((p is not None, c is not None, n is not None))
-        pprint([p, c, n])
+        use_p = p is not None
+        use_c = c is not None
+        use_n = n is not None
+        self.previous_label.setText(f"last: {p.data_title if use_p else 'None'}")
+        self.previous_label.setEnabled(use_p)
+        self.current_label.setText(f"now: {c.data_title  if use_c else 'None'}")
+        self.next_label.setText(f"next: {n.data_title  if use_n else 'None'}")
+        self.next_label.setEnabled(use_n)
+        self.controller.set_enabled((use_p, use_c, use_n))
 
     # Progress bar
     @Slot()
@@ -191,10 +194,22 @@ class Player(QWidget):
     @Slot()
     def resume(self):
         self.audio_player.update_playing(True)
+        self.controller.set_playing(True)
 
     @Slot()
     def pause(self):
         self.audio_player.update_playing(False)
+        self.controller.set_playing(False)
+
+    @Slot()
+    def toggle_playing(self):
+        if (
+            self.audio_player.media_player is None
+            or self.audio_player.media_player.playbackState() != QMediaPlayer.PlaybackState.PlayingState
+        ):
+            self.resume()
+        else:
+            self.pause()
 
     # Audio player
     @Slot(QMediaPlayer.MediaStatus)
@@ -202,6 +217,15 @@ class Player(QWidget):
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
             self.controller.set_playing(False)
             print("Player finished")
+
+    @Slot(QMediaPlayer.PlaybackState)
+    def playbackstate_changed(self, state: QMediaPlayer.PlaybackState):
+        if state == QMediaPlayer.PlaybackState.PlayingState:
+            self.controller.set_playing(True)
+        elif state == QMediaPlayer.PlaybackState.PausedState:
+            self.controller.set_playing(False)
+        elif state == QMediaPlayer.PlaybackState.StoppedState:
+            ...
 
 
 class PlayerDock(QDockWidget):
