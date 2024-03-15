@@ -6,7 +6,7 @@ from queue import Queue
 
 import darkdetect as dd
 import orjson
-import polars
+import polars as pl
 from polars import DataFrame, LazyFrame
 from PySide6.QtCore import (
     QEvent,
@@ -160,8 +160,8 @@ class MainWindow(QMainWindow):
 
         if self.queue_saved_path.exists():
             with self.queue_saved_path.open("rb") as f:
-                print(
-                    self.opser.from_dict(
+                try:
+                    ops = self.opser.from_dict(
                         orjson.loads(f.read()),
                         lambda s: SongWidget(
                             self.cache[s],
@@ -171,7 +171,9 @@ class MainWindow(QMainWindow):
                             parent=self.play_queue_op,
                         ),
                     )
-                )
+                    self.play_queue_op.populate(ops)
+                except Exception as e:
+                    print(e)
 
         self.playlist_view = PlaylistView(self)
         self.playlist_view.set_cache_handler(self.cache)
@@ -251,7 +253,7 @@ class MainWindow(QMainWindow):
         with contextlib.suppress(Exception):
             self.player_dock.force_stop()
 
-            df = polars.from_dicts([{"key": k, **v} for k, v in self.cache.generate_dict()])
+            df = pl.from_dicts([{"key": k, **v} for k, v in self.cache.generate_dict()])
             print(df)
             self.cache.save()
             df.write_ipc(self.db_path)

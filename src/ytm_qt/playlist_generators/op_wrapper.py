@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from abc import abstractmethod
 from functools import partial
-from typing import overload
+from typing import Self, overload
 
 from PySide6.QtCore import (
     QEvent,
@@ -72,13 +72,12 @@ class OperationWrapper(QWidget):
     ungroup_signal = Signal()
     manager_generated = Signal(TrackManager)
 
-    def __init__(self, icons: Icons, resizable=False, parent: OperationWrapper | QWidget | None = None) -> None:
+    def __init__(self, icons: Icons, parent: OperationWrapper | QWidget | None = None) -> None:
         super().__init__(parent)
         self.setAcceptDrops(True)
         self.setMouseTracking(True)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
 
-        self.resizable = resizable
         self.icons = icons
 
         self._selected = False
@@ -247,6 +246,20 @@ class OperationWrapper(QWidget):
 
         return self.mode(ops, **self.mode_settings.get_kwargs())
 
+    @classmethod
+    def from_operations(cls, sop: RecursiveSongOperation[SongWidget], icons: Icons, parent=None) -> Self:
+        self = cls(icons, parent)
+        self.change_mode(sop.key(), kwargs=sop.get_kwargs())
+        self.populate(sop)
+        return self
+
+    def populate(self, sop: RecursiveSongOperation[SongWidget]):
+        for op in sop.songs:
+            if isinstance(op, SinglePlay):
+                self.add_item(op.song)
+            elif isinstance(op, RecursiveSongOperation):
+                self.add_item(self.from_operations(op, icons=self.icons, parent=self))
+
     def validate_operations(self, ops: SongOperation | None = None):
         ops = ops or self.generate_operations()
         assert isinstance(ops, RecursiveSongOperation)
@@ -256,7 +269,7 @@ class OperationWrapper(QWidget):
     @Slot()
     def add_group(self):
         assert self.cache_handler is not None
-        ow = OperationWrapper(self.icons, resizable=True, parent=self)
+        ow = OperationWrapper(self.icons, parent=self)
         ow.set_cache_handler(self.cache_handler)
         self.add_item(ow)
 
@@ -297,7 +310,7 @@ class OperationWrapper(QWidget):
 
     def group_widget(self, widget: SongWidget):
         # replace the widget with a OperationWrapper, then move the widget into it
-        wrapper = OperationWrapper(self.icons, resizable=True, parent=self)
+        wrapper = OperationWrapper(self.icons, parent=self)
         idx = self.widgets.index(widget)
         self.remove_item(widget)
         wrapper.add_song(widget.request)
@@ -399,7 +412,7 @@ class OperationWrapper(QWidget):
     def create_item(self, response: SongRequest | OperationRequest, playable=True) -> SongWidget | OperationWrapper:
         assert self.cache_handler is not None
         if isinstance(response, OperationRequest):
-            ow = OperationWrapper(self.icons, resizable=False, parent=self)
+            ow = OperationWrapper(self.icons, parent=self)
             ow.change_mode(response.data_type.key(), kwargs=response.data_config)
             ow.set_cache_handler(self.cache_handler)
 
