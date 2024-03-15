@@ -94,5 +94,7 @@ class YoutubeDLProvider(QThread):
             except IndexError:
                 pass
 
+            QThread.msleep(250)  # sleep for 250 ms to avoid busy waiting
+
     def stop(self):
         self.running = False
