@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from typing import Union
 
-from .dicts import YTMSmallVideoResponse
+from .cache_handlers import CacheItem
 from .playlist_generators.song_ops import SongOperation
 
 
 @dataclass(frozen=True)
 class SongRequest:
-    data: YTMSmallVideoResponse
+    data: CacheItem
 
 
 @dataclass(frozen=True)

@@ -3,6 +3,8 @@ import uuid
 from collections.abc import Sequence
 from datetime import timedelta
 from pathlib import Path
+from re import L
+from typing import Self
 
 from PySide6.QtCore import (
     QEvent,
@@ -31,6 +33,7 @@ from PySide6.QtWidgets import (
 from .cache_handlers import CacheItem
 from .dataclasses import SongRequest
 from .dicts import (
+    SongMetaData,
     YTMDownloadResponse,
     YTMSmallVideoResponse,
 )
@@ -120,8 +123,7 @@ class SongWidget(QFrame):
 
     def __init__(
         self,
-        data: YTMSmallVideoResponse,
-        cache: CacheItem,
+        data: CacheItem,
         /,
         playable: bool = False,
         icons: Icons | None = None,
@@ -141,44 +143,38 @@ class SongWidget(QFrame):
 
         self.layout_ = QGridLayout(self)
         self.layout_.setContentsMargins(0, 0, 0, 0)
-        self.metadata = data
 
-        self.cache = cache
+        self.data = data
         self.fonts = fonts or Fonts.get()
         self.icons = icons or Icons.get()
 
-        self.thumbnail_path = cache.thumbnail
+        self.thumbnail_path = data.thumbnail
         self.thumbnail_label = ThumbnailLabel(self.icons, playable, self)
 
-        self.data_id = self.metadata["id"]
+        self.data_id = data.key
+        if data.metadata is not None:
+            self.data_title = data.metadata["title"] or "???"
+            self.duration = timedelta(seconds=int(data.metadata["duration"] or -1))
+            self.author = data.metadata["artist"]
+            self.thumbnail = data.metadata["thumbnail"]
+        else:
+            self.data_title = "???"
+            self.duration = timedelta(seconds=0)
+            self.author = "???"
+            self.thumbnail = None
 
-        self.data_title = self.metadata["title"]
         self.title_label = ElidedTextLabel(text=self.data_title, parent=self)
         self.thumbnail_requested = False
         self.title_label.setFont(self.fonts.playlist_entry_title)
-        self.duration = timedelta(seconds=int(self.metadata["duration"]))
-        self.author_and_duration_label = QLabel(f"{self.metadata["channel"]} - {self.duration}", parent=self)
+        self.author_and_duration_label = QLabel(f"{self.author} - {self.duration}", parent=self)
         self.author_and_duration_label.setFont(self.fonts.playlist_entry_author)
         self.layout_.addWidget(self.thumbnail_label, 0, 0, 2, 1)
         self.layout_.addWidget(self.title_label, 0, 1)
         self.layout_.addWidget(self.author_and_duration_label, 1, 1)
 
-        self.thumbnail = max(
-            self.metadata["thumbnails"],
-            key=lambda d: (
-                d.get("height"),
-                d.get("width"),
-                d.get("preference"),
-            ),
-        )
-
     @property
     def request(self):
-        return SongRequest(self.metadata)
-
-    @classmethod
-    def from_dct(cls, dct: YTMSmallVideoResponse, cache: CacheItem, parent=None):
-        return cls(dct, cache, parent=parent)
+        return SongRequest(self.data)
 
     @Slot()
     def set_icon(self):
@@ -186,7 +182,7 @@ class SongWidget(QFrame):
             icon = QIcon(str(self.thumbnail_path))
             self.thumbnail_label.setPixmap(icon.pixmap(50, 50))
             self.thumbnail_requested = False
-        elif not self.thumbnail_requested:
+        elif (not self.thumbnail_requested) and self.thumbnail is not None:
             self.thumbnail_requested = True
             self.thumbnail_label.setPixmap(self.icons.more_horiz.pixmap(50, 50))
 
@@ -200,7 +196,7 @@ class SongWidget(QFrame):
     def start_drag(self):
         drag = QDrag(self)
         mime = QMimeData()
-        mime.setText(json.dumps(self.metadata))
+        mime.setText(json.dumps(self.data.metadata))
         drag.setMimeData(mime)
 
         pixmap = QPixmap(self.size())
@@ -223,7 +219,13 @@ class SongWidget(QFrame):
             self.setStyleSheet("")
 
     def _request_song(self):
-        request = YTMDownload(QUrl(self.metadata["url"]), parent=self)
+        if self.data.metadata is not None:
+            url = self.data.metadata["url"]
+        else:
+            url = f"https://music.youtube.com/watch?v={self.data.key}"
+            print(f"Metadata is None, assuming URL is {url}")
+
+        request = YTMDownload(QUrl(url), parent=self)
         request.processed.connect(self._song_gathered)
         self.request_song.emit(request)
 
@@ -231,25 +233,16 @@ class SongWidget(QFrame):
     def _song_gathered(self, response: YTMDownloadResponse):
         download = response["requested_downloads"][0]
         path = Path(download["filepath"])
-        path.replace(self.cache.audio)
-        print(f"Moved {path} to {self.cache.audio}")
-
-        self.cache.audio_format = download["audio_ext"]
-        self.cache.metadata = {
-            "title": response["title"],
-            "description": response["description"],
-            "duration": response["duration"],
-            "artist": response["channel"],
-        }
-
-        self.song_gathered.emit(self.cache.audio)
+        path.replace(self.data.audio)
+        print(f"Moved {path} to {self.data.audio}")
+        self.song_gathered.emit(self.data.audio)
 
     @property
     def filepath(self):
-        return self.cache.audio
+        return self.data.audio
 
     def ensure_audio_exists(self):
-        if not self.cache.audio.exists():
+        if not self.data.audio.exists():
             print("Requesting")
             self._request_song()
 

@@ -407,9 +407,10 @@ class OperationWrapper(QWidget):
                 ow.add_song(song)
             return ow
 
+        item = self.cache_handler[response.data.key]
+
         return SongWidget(
-            response.data,
-            self.cache_handler[response.data["id"]],
+            item,
             icons=self.icons,
             playable=playable,
             parent=self.tree[0],

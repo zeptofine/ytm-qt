@@ -9,6 +9,7 @@ dependencies = [
     "validators>=0.22.0",
     "darkdetect>=0.8.0",
     "orjson>=3.9.15",
+    "polars>=0.20.15",
 ]
 description = "Default template for PDM package"
 license = { text = "MIT" }

@@ -4,6 +4,8 @@ from PySide6.QtWidgets import (
 )
 
 from ytm_qt import CacheHandler
+from ..fonts import Fonts
+from ..cache_handlers import CacheItem
 from ytm_qt.dicts import YTMSmallVideoResponse
 from ytm_qt.icons import Icons
 from ytm_qt.song_widget import SongWidget
@@ -15,7 +17,7 @@ from .list_view import ListView
 class PlaylistDock[T: ListView](QDockWidget):
     request_new_icon = Signal(DownloadIcon)
 
-    def __init__(self, cache_handler: CacheHandler, playlist: T, icons: Icons, parent=None):
+    def __init__(self, cache_handler: CacheHandler, playlist: T, icons: Icons, fonts: Fonts, parent=None):
         super().__init__(parent)
 
         self.setMinimumWidth(200)
@@ -30,7 +32,12 @@ class PlaylistDock[T: ListView](QDockWidget):
         self.list.add_item(w)
 
     def _create_song(self, dct: YTMSmallVideoResponse):
-        widget = SongWidget(dct, self.cache_handler[dct["id"]], icons=self.icons, parent=self.list)
+        widget = SongWidget(
+            CacheItem.from_ytmsvr(dct, self.cache_handler),
+            playable=False,
+            icons=self.icons,
+            parent=self.list,
+        )
         widget.request_icon.connect(self.request_new_icon)
         widget.set_icon()
         return widget

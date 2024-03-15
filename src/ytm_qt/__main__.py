@@ -6,6 +6,8 @@ from queue import Queue
 
 import darkdetect as dd
 import orjson
+import polars
+from polars import DataFrame, LazyFrame
 from PySide6.QtCore import (
     QEvent,
     QMimeData,
@@ -115,7 +117,10 @@ class MainWindow(QMainWindow):
         self.header.searched.connect(self.extract_url)
         self.setMenuWidget(self.header)
 
+        self.opser: OperationSerializer[SongWidget] = OperationSerializer.default()
+
         self.cache_dir = Path("cache")
+        self.db_path = self.cache_dir / "db.feather"
         self.cache = CacheHandler(self.cache_dir)
         self.cache.load()
         self.queue_saved_path = self.cache_dir / "queue.json"
@@ -151,8 +156,22 @@ class MainWindow(QMainWindow):
         )
         self.play_queue_dock.setWindowTitle("Playing queue")
 
-        # self.play_queue_op
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.play_queue_dock)
+
+        if self.queue_saved_path.exists():
+            with self.queue_saved_path.open("rb") as f:
+                print(
+                    self.opser.from_dict(
+                        orjson.loads(f.read()),
+                        lambda s: SongWidget(
+                            self.cache[s],
+                            playable=True,
+                            icons=self.icons,
+                            fonts=self.fonts,
+                            parent=self.play_queue_op,
+                        ),
+                    )
+                )
 
         self.playlist_view = PlaylistView(self)
         self.playlist_view.set_cache_handler(self.cache)
@@ -160,6 +179,7 @@ class MainWindow(QMainWindow):
             cache_handler=self.cache,
             playlist=self.playlist_view,
             icons=self.icons,
+            fonts=self.fonts,
             parent=self,
         )
         self.playlist_view.add_to_queue.connect(self.playlist_song_clicked)
@@ -180,8 +200,6 @@ class MainWindow(QMainWindow):
         self.save_action.setShortcut(QKeySequence.StandardKey.Save)
         self.save_action.triggered.connect(self.save_queue)
         self.addAction(self.save_action)
-
-        self.opser: OperationSerializer[SongWidget] = OperationSerializer.default()
 
     @Slot(str)
     def extract_url(self, url: str):
@@ -233,7 +251,11 @@ class MainWindow(QMainWindow):
         with contextlib.suppress(Exception):
             self.player_dock.force_stop()
 
+            df = polars.from_dicts([{"key": k, **v} for k, v in self.cache.generate_dict()])
+            print(df)
             self.cache.save()
+            df.write_ipc(self.db_path)
+
             self.ytdlp_thread.stop()
             self.ytdlp_thread.wait(10_000)
             self.ytdlp_thread.terminate()

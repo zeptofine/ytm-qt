@@ -110,5 +110,8 @@ class YTMDownloadResponse(YTMResponse):
 class SongMetaData(TypedDict):
     title: str | None
     description: str | None
-    duration: int
-    artist: str | None
+    duration: int | None
+    artist: str
+    url: str
+    thumbnail: YTMThumbnail
+    audio_format: str | None

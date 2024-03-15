@@ -2,39 +2,32 @@ from __future__ import annotations
 
 import json
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
-if TYPE_CHECKING:
-    from .dicts import SongMetaData
+from .dicts import SongMetaData, YTMSmallVideoResponse, YTMThumbnail
 
 
 class AudioCache(TypedDict):
     thumbnail: Path
     audio: Path
-    audio_format: str
     metadata: SongMetaData | None
 
 
+@dataclass
 class CacheItem:
-    def __init__(self, parent: CacheHandler, key: str, d: AudioCache | None = None) -> None:
-        self.__parent = parent
-        self._key = key
-        self.__dct: AudioCache = d if d is not None else {}  # type: ignore
-
-    @property
-    def key(self):
-        return self._key
+    parent: CacheHandler
+    key: str
+    d: AudioCache
 
     def to_dict(self):
         dct = {}
-        me = self.__dct
+        me = self.d
         if "audio" in me:
             dct["audio"] = str(me["audio"])
         if "thumbnail" in me:
             dct["thumbnail"] = str(me["thumbnail"])
-        if "audio_format" in me:
-            dct["audio_format"] = me["audio_format"]
         if "metadata" in me:
             dct["metadata"] = me["metadata"]
 
@@ -47,8 +40,6 @@ class CacheItem:
             dct["audio"] = Path(d["audio"])
         if "thumbnail" in d:
             dct["thumbnail"] = Path(d["thumbnail"])
-        if "audio_format" in d:
-            dct["audio_format"] = d["audio_format"]
         if "metadata" in d:
             dct["metadata"] = d["metadata"]
 
@@ -60,31 +51,59 @@ class CacheItem:
 
     @property
     def thumbnail(self):
-        if "thumbnail" not in self.__dct:
-            self.__dct["thumbnail"] = self.__parent.new_object("thumbnail")
-        return self.__dct["thumbnail"]
+        if "thumbnail" not in self.d:
+            self.d["thumbnail"] = self.parent.new_object("thumbnail")
+        return self.d["thumbnail"]
 
     @property
     def audio(self):
-        if "audio" not in self.__dct:
-            self.__dct["audio"] = self.__parent.new_object("audio")
-        return self.__dct["audio"]
+        if "audio" not in self.d:
+            self.d["audio"] = self.parent.new_object("audio")
+        return self.d["audio"]
 
     @property
-    def audio_format(self):
-        return self.__dct.get("audio_format", None)
-
-    @audio_format.setter
-    def audio_format(self, v):
-        self.__dct["audio_format"] = v
-
-    @property
-    def metadata(self):
-        return self.__dct.get("metadata", {})
+    def metadata(self) -> SongMetaData | None:
+        return self.d["metadata"]
 
     @metadata.setter
     def metadata(self, v: SongMetaData):
-        self.__dct["metadata"] = v
+        self.d["metadata"] = v
+
+    @classmethod
+    def from_ytmsvr(cls, dct: YTMSmallVideoResponse, parent: CacheHandler):
+        if dct["id"] in parent:
+            return parent[dct["id"]]
+
+        thumbnail = max(
+            dct["thumbnails"],
+            key=lambda d: (
+                d.get("height"),
+                d.get("width"),
+                d.get("preference"),
+            ),
+        )
+        item = cls(
+            parent,
+            dct["id"],
+            {
+                "thumbnail": parent.new_object("thumbnail"),
+                "audio": parent.new_object("audio"),
+                "metadata": SongMetaData(
+                    {
+                        "title": dct["title"],
+                        "description": dct["description"],
+                        "duration": dct["duration"],
+                        "artist": dct["channel"],
+                        "url": dct["url"],
+                        "thumbnail": thumbnail,
+                        "audio_format": None,
+                    }
+                ),
+            },
+        )
+        parent[dct["id"]] = item
+
+        return item
 
 
 class CacheHandler:
@@ -98,13 +117,23 @@ class CacheHandler:
         self.items = [p.relative_to(self.pth) for p in self.pth.glob("*")]
         self.categories = []
 
+    def __setitem__(self, k: str, v: CacheItem):
+        self.__dct[k] = v
+
+    def __call__(self, key: str, metadata: SongMetaData | None = None) -> CacheItem:
+        return CacheItem(
+            self,
+            key,
+            {"thumbnail": self.new_object("thumbnail"), "audio": self.new_object("audio"), "metadata": metadata},
+        )
+
+    def __contains__(self, k: str):
+        return k in self.__dct
+
     def __getitem__(self, k: str) -> CacheItem:
         if k not in self.__dct:
-            self.__dct[k] = self.__new_key(k)
+            self.__dct[k] = self(k)
         return self.__dct[k]
-
-    def __new_key(self, k: str) -> CacheItem:
-        return CacheItem(self, k)
 
     def new_object(self, category="_uncategorized"):
         cat = self.pth / category
@@ -115,8 +144,11 @@ class CacheHandler:
         self.items.append(id_)
         return id_
 
+    def generate_dict(self):
+        return ((k, i.to_dict()) for k, i in self.__dct.items())
+
     def to_dict(self):
-        return {k: i.to_dict() for k, i in self.__dct.items()}
+        return dict(self.generate_dict())
 
     def load(self):
         if self.__config_pth.exists():
