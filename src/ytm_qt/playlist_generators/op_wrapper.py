@@ -72,7 +72,12 @@ class OperationWrapper(QWidget):
     ungroup_signal = Signal()
     manager_generated = Signal(TrackManager)
 
-    def __init__(self, icons: Icons, parent: OperationWrapper | QWidget | None = None) -> None:
+    def __init__(
+        self,
+        icons: Icons,
+        cache_handler: CacheHandler,
+        parent: OperationWrapper | QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setAcceptDrops(True)
         self.setMouseTracking(True)
@@ -83,7 +88,7 @@ class OperationWrapper(QWidget):
         self._selected = False
         self.previous_position = None
 
-        self.cache_handler = None
+        self.cache_handler = cache_handler
         self.widgets: PListLayout[OperationWrapper | SongWidget] = PListLayout()
         self.widgets.setContentsMargins(0, 0, 0, 0)
         self.widgets.setSpacing(0)
@@ -222,9 +227,6 @@ class OperationWrapper(QWidget):
             widget.setParent(None)
         self.widgets.clear()
 
-    def set_cache_handler(self, ch: CacheHandler | None):
-        self.cache_handler = ch
-
     def ungroup_self(self):
         self.ungroup_signal.emit()
 
@@ -247,8 +249,14 @@ class OperationWrapper(QWidget):
         return self.mode(ops, **self.mode_settings.get_kwargs())
 
     @classmethod
-    def from_operations(cls, sop: RecursiveSongOperation[SongWidget], icons: Icons, parent=None) -> Self:
-        self = cls(icons, parent)
+    def from_operations(
+        cls,
+        sop: RecursiveSongOperation[SongWidget],
+        cache_handler: CacheHandler,
+        icons: Icons,
+        parent=None,
+    ) -> Self:
+        self = cls(icons, cache_handler, parent)
         self.change_mode(sop.key(), kwargs=sop.get_kwargs())
         self.populate(sop)
         return self
@@ -258,7 +266,7 @@ class OperationWrapper(QWidget):
             if isinstance(op, SinglePlay):
                 self.add_item(op.song)
             elif isinstance(op, RecursiveSongOperation):
-                self.add_item(self.from_operations(op, icons=self.icons, parent=self))
+                self.add_item(self.from_operations(op, cache_handler=self.cache_handler, icons=self.icons, parent=self))
 
     def validate_operations(self, ops: SongOperation | None = None):
         ops = ops or self.generate_operations()
@@ -269,8 +277,7 @@ class OperationWrapper(QWidget):
     @Slot()
     def add_group(self):
         assert self.cache_handler is not None
-        ow = OperationWrapper(self.icons, parent=self)
-        ow.set_cache_handler(self.cache_handler)
+        ow = OperationWrapper(self.icons, cache_handler=self.cache_handler, parent=self)
         self.add_item(ow)
 
     @Slot()
@@ -310,7 +317,7 @@ class OperationWrapper(QWidget):
 
     def group_widget(self, widget: SongWidget):
         # replace the widget with a OperationWrapper, then move the widget into it
-        wrapper = OperationWrapper(self.icons, parent=self)
+        wrapper = OperationWrapper(self.icons, self.cache_handler, parent=self)
         idx = self.widgets.index(widget)
         self.remove_item(widget)
         wrapper.add_song(widget.request)
@@ -394,9 +401,14 @@ class OperationWrapper(QWidget):
             parent = tree[-1]
             n = max(min(n, len(self.widgets) - 1), 0)
             if parent is not self:
-                parent.remove_item(source)
+                request = source.request
+                if isinstance(source, OperationWrapper):
+                    source.clear()
+                    source.ungroup_signal.emit()
+                else:
+                    parent.remove_item(source)
 
-                self.add_item(self.create_item(source.request, playable=True), n)
+                self.add_item(self.create_item(request, playable=True), n)
 
                 # parent.widgets.remove(source)
                 # self.widgets.insert(n, source)
@@ -415,9 +427,8 @@ class OperationWrapper(QWidget):
     def create_item(self, response: SongRequest | OperationRequest, playable=True) -> SongWidget | OperationWrapper:
         assert self.cache_handler is not None
         if isinstance(response, OperationRequest):
-            ow = OperationWrapper(self.icons, parent=self)
+            ow = OperationWrapper(self.icons, self.cache_handler, parent=self)
             ow.change_mode(response.data_type.key(), kwargs=response.data_config)
-            ow.set_cache_handler(self.cache_handler)
 
             for song in response.songs:
                 ow.add_song(song)
