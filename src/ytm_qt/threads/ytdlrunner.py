@@ -1,6 +1,6 @@
 from abc import abstractmethod
+from collections import deque
 from pprint import pprint
-from queue import Empty, Queue
 
 from PySide6.QtCore import (
     QObject,
@@ -67,7 +67,7 @@ class YTMDownload(YTDLUser):
 class YoutubeDLProvider(QThread):
     err = Signal(Exception)
 
-    def __init__(self, opts: dict, q: Queue[YTDLUser]) -> None:
+    def __init__(self, opts: dict, q: deque[YTDLUser]) -> None:
         super().__init__()
         self.opts = opts
         self.queue = q
@@ -77,14 +77,13 @@ class YoutubeDLProvider(QThread):
         with YoutubeDL(self.opts) as ytdl:
             while self.running:
                 try:
-                    user = self.queue.get_nowait()
+                    user = self.queue.popleft()
                     try:
                         user.run(ytdl)
                     except Exception as e:
                         self.err.emit(e)
 
-                    self.queue.task_done()
-                except Empty:
+                except IndexError:
                     pass
 
                 QThread.msleep(250)  # sleep for 250 ms to avoid busy waiting

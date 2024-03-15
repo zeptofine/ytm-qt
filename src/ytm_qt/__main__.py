@@ -1,5 +1,6 @@
 import contextlib
 import sys
+from collections import deque
 from pathlib import Path
 from pprint import pprint
 from queue import Queue
@@ -125,7 +126,7 @@ class MainWindow(QMainWindow):
         self.cache.load()
         self.queue_saved_path = self.cache_dir / "queue.json"
 
-        self.ytdlp_queue: Queue[YTDLUser] = Queue()
+        self.ytdlp_queue: deque[YTDLUser] = deque()
         self.ytdlp_thread = YoutubeDLProvider(opts, self.ytdlp_queue)
         self.ytdlp_thread.start()
 
@@ -137,7 +138,7 @@ class MainWindow(QMainWindow):
 
         infotask = YTMExtractInfo(URL)
         infotask.processed.connect(self.info_extracted)
-        self.ytdlp_queue.put(infotask)
+        self.ytdlp_queue.append(infotask)
 
         self.player_dock = PlayerDock(self.icons, self.fonts, parent=self)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.player_dock)
@@ -207,12 +208,12 @@ class MainWindow(QMainWindow):
     def extract_url(self, url: str):
         request = YTMExtractInfo(url, parent=self)
         request.processed.connect(self.info_extracted)
-        self.ytdlp_queue.put(request)
+        self.ytdlp_queue.append(request)
 
     @Slot(YTMDownload)
     def song_requested(self, request: YTMDownload):
         print(f"Request recieved: {request}")
-        self.ytdlp_queue.put(request)
+        self.ytdlp_queue.appendleft(request)
 
     @Slot(SongWidget)
     def playlist_song_clicked(self, song: SongWidget):
