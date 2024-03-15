@@ -3,9 +3,7 @@ from PySide6.QtWidgets import (
     QDockWidget,
 )
 
-from ytm_qt import CacheHandler
-from ..fonts import Fonts
-from ..cache_handlers import CacheItem
+from ytm_qt import CacheHandler, CacheItem, Fonts
 from ytm_qt.dicts import YTMSmallVideoResponse
 from ytm_qt.icons import Icons
 from ytm_qt.song_widget import SongWidget

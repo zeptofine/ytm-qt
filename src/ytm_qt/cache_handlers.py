@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import json
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TypedDict
 
-from .dicts import SongMetaData, YTMSmallVideoResponse, YTMThumbnail
+import orjson
+
+from .dicts import SongMetaData, YTMSmallVideoResponse
 
 
 class AudioCache(TypedDict):
@@ -30,6 +31,7 @@ class CacheItem:
             dct["thumbnail"] = str(me["thumbnail"])
         if "metadata" in me:
             dct["metadata"] = me["metadata"]
+        dct["key"] = self.key
 
         return dct
 
@@ -121,18 +123,18 @@ class CacheHandler:
         self.__dct[k] = v
 
     def __call__(self, key: str, metadata: SongMetaData | None = None) -> CacheItem:
-        return CacheItem(
-            self,
-            key,
-            {"thumbnail": self.new_object("thumbnail"), "audio": self.new_object("audio"), "metadata": metadata},
-        )
+        if key not in self.__dct:
+            self.__dct[key] = CacheItem(
+                self,
+                key,
+                {"thumbnail": self.new_object("thumbnail"), "audio": self.new_object("audio"), "metadata": metadata},
+            )
+        return self.__dct[key]
 
     def __contains__(self, k: str):
         return k in self.__dct
 
     def __getitem__(self, k: str) -> CacheItem:
-        if k not in self.__dct:
-            self.__dct[k] = self(k)
         return self.__dct[k]
 
     def new_object(self, category="_uncategorized"):
@@ -150,9 +152,9 @@ class CacheHandler:
     def load(self):
         if self.__config_pth.exists():
             with self.__config_pth.open() as f:
-                for k, v in json.loads(f.read()).items():
+                for k, v in orjson.loads(f.read()).items():
                     self.__dct.update({k: CacheItem.from_dict(self, k, v)})
 
     def save(self):
-        with self.__config_pth.open("w") as f:
-            f.write(json.dumps(self.to_dict(), indent=4))
+        with self.__config_pth.open("wb") as f:
+            f.write(orjson.dumps(self.to_dict()))

@@ -1,30 +1,14 @@
 from functools import partial
 
 from PySide6.QtCore import (
-    QPoint,
-    QPointF,
     Qt,
     Signal,
     Slot,
 )
 from PySide6.QtGui import (
     QAction,
-    QDragEnterEvent,
-    QDragLeaveEvent,
-    QDragMoveEvent,
-    QDropEvent,
-    QIcon,
-    QKeySequence,
-    QMouseEvent,
 )
 from PySide6.QtWidgets import (
-    QComboBox,
-    QFrame,
-    QGridLayout,
-    QHBoxLayout,
-    QPushButton,
-    QScrollArea,
-    QSizePolicy,
     QWidget,
 )
 

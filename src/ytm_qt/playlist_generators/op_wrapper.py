@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 from abc import abstractmethod
 from functools import partial
+from pprint import pprint
 from typing import Self, overload
 
+import orjson
 from PySide6.QtCore import (
     QEvent,
     QMimeData,
@@ -44,7 +45,6 @@ from PySide6.QtWidgets import (
 
 from ytm_qt import CacheHandler, Icons
 from ytm_qt.dataclasses import OperationRequest, SongRequest
-from ytm_qt.dicts import YTMSmallVideoResponse
 from ytm_qt.song_widget import SongWidget
 from ytm_qt.threads.download_icons import DownloadIcon
 from ytm_qt.threads.ytdlrunner import YTMDownload
@@ -382,7 +382,10 @@ class OperationWrapper(QWidget):
 
         n = self._find_drop_position(event.position())
         if not tree:  # tree must be ()
-            item = self.create_item(SongRequest(json.loads(mimedata.text())))
+            assert self.cache_handler is not None
+            js = orjson.loads(mimedata.text())
+            citem = self.cache_handler(js["key"], js)
+            item = self.create_item(SongRequest(citem))
             if n > len(self.widgets):
                 n = None
             self.add_item(item, idx=n)

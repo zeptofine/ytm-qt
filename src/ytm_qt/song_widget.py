@@ -1,4 +1,3 @@
-import json
 import uuid
 from collections.abc import Sequence
 from datetime import timedelta
@@ -6,6 +5,7 @@ from pathlib import Path
 from re import L
 from typing import Self
 
+import orjson
 from PySide6.QtCore import (
     QEvent,
     QMimeData,
@@ -202,7 +202,7 @@ class SongWidget(QFrame):
     def start_drag(self):
         drag = QDrag(self)
         mime = QMimeData()
-        mime.setText(json.dumps(self.data.metadata))
+        mime.setText(orjson.dumps(self.data.to_dict()).decode())
         drag.setMimeData(mime)
 
         pixmap = QPixmap(self.size())
