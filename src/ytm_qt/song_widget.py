@@ -9,6 +9,7 @@ from typing import Self
 from PySide6.QtCore import (
     QEvent,
     QMimeData,
+    QRect,
     Qt,
     QUrl,
     Signal,
@@ -172,6 +173,11 @@ class SongWidget(QFrame):
         self.layout_.addWidget(self.title_label, 0, 1)
         self.layout_.addWidget(self.author_and_duration_label, 1, 1)
 
+        self.download_progress_frame = QFrame(self)
+        self.download_progress_frame.setStyleSheet("background: rgba(0, 0, 0, 100); outline: 1px solid green")
+        self.download_progress_frame.setGeometry(self.thumbnail_label.geometry())
+        self.download_progress_frame.hide()
+
     @property
     def request(self):
         return SongRequest(self.data)
@@ -218,6 +224,7 @@ class SongWidget(QFrame):
         else:
             self.setStyleSheet("")
 
+    # TODO: use ✓ and ✘ or icons to represent downloaded status
     def _request_song(self):
         if self.data.metadata is not None:
             url = self.data.metadata["url"]
@@ -225,14 +232,40 @@ class SongWidget(QFrame):
             url = f"https://music.youtube.com/watch?v={self.data.key}"
             print(f"Metadata is None, assuming URL is {url}")
 
+        self.download_progress_frame.show()
         request = YTMDownload(QUrl(url), parent=self)
         request.processed.connect(self._song_gathered)
+        request.progress.connect(self.__download_progress)
         self.request_song.emit(request)
+
+    def __download_progress(self, progress: dict):
+        if progress["status"] == "downloading" and (total := progress.get("total_bytes")) is not None:
+            self.__update_download_geometry(progress["downloaded_bytes"] / total)
+        elif progress["status"] == "finished":
+            self.download_progress_frame.hide()
+
+    def __update_download_geometry(self, v: float):  # v 0..=1
+        geometry = self.thumbnail_label.geometry()
+
+        def maprange(b1, b2, s):
+            # b1 + ((s - a1) * (b2 - b1) / (a2 - a1))
+            return b1 + (s * (b2 - b1))
+
+        top = maprange(geometry.top(), geometry.bottom(), v)
+        geometry = QRect(
+            geometry.left(),
+            int(top),
+            geometry.width(),
+            int(geometry.height() - top),
+        )
+        self.download_progress_frame.setGeometry(geometry)
 
     @Slot(YTMDownloadResponse)
     def _song_gathered(self, response: YTMDownloadResponse):
         download = response["requested_downloads"][0]
         path = Path(download["filepath"])
+        if not self.data.audio.parent.exists():
+            self.data.audio.parent.mkdir(parents=True)
         path.replace(self.data.audio)
         print(f"Moved {path} to {self.data.audio}")
         self.song_gathered.emit(self.data.audio)

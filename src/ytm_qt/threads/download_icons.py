@@ -40,6 +40,8 @@ class DownloadIconProvider(QRunnable):
                         continue
                     data.raise_for_status()
                     content = data.content
+                    if not icon_info.output_path.parent.exists():
+                        icon_info.output_path.parent.mkdir(parents=True)
                     with open(icon_info.output_path, "wb") as f:
                         f.write(content)
 

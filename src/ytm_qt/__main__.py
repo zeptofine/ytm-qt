@@ -132,7 +132,7 @@ class MainWindow(QMainWindow):
 
         self.icon_download_queue = Queue()
         self.icon_threadpool = QThreadPool(self)
-        self.icon_providers = [DownloadIconProvider(self.icon_download_queue) for _ in range(4)]
+        self.icon_providers = [DownloadIconProvider(self.icon_download_queue) for _ in range(6)]
         for provider in self.icon_providers:
             self.icon_threadpool.start(provider)
 

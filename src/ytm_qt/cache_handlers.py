@@ -53,13 +53,13 @@ class CacheItem:
     def thumbnail(self):
         if "thumbnail" not in self.d:
             self.d["thumbnail"] = self.parent.new_object("thumbnail")
-        return self.d["thumbnail"]
+        return self.parent.pth / self.d["thumbnail"]
 
     @property
     def audio(self):
         if "audio" not in self.d:
             self.d["audio"] = self.parent.new_object("audio")
-        return self.d["audio"]
+        return self.parent.pth / self.d["audio"]
 
     @property
     def metadata(self) -> SongMetaData | None:
@@ -136,10 +136,7 @@ class CacheHandler:
         return self.__dct[k]
 
     def new_object(self, category="_uncategorized"):
-        cat = self.pth / category
-        if not cat.exists():
-            cat.mkdir(parents=True)
-        while (id_ := cat / Path(str(uuid.uuid4()))) in self.items:
+        while (id_ := category / Path(str(uuid.uuid4()))) in self.items:
             pass
         self.items.append(id_)
         return id_

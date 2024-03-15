@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from collections import deque
+from collections.abc import Callable
 from pprint import pprint
 
 from PySide6.QtCore import (
@@ -19,8 +20,11 @@ class YTDLUser(QObject):
     error = Signal(str)
     started = Signal()
     finished = Signal()
-    progress = Signal(int)
-    progress_total = Signal(int)
+    progress = Signal(dict)
+
+    def __init__(self, hook: Callable[[dict], None] | None = None, parent=None):
+        super().__init__(parent)
+        self.hook = hook
 
     def run(self, ytdl: YoutubeDL):
         self.started.emit()
@@ -74,19 +78,21 @@ class YoutubeDLProvider(QThread):
         self.running = True
 
     def run(self):
-        with YoutubeDL(self.opts) as ytdl:
-            while self.running:
+        while self.running:
+            try:
+                user = self.queue.popleft()
                 try:
-                    user = self.queue.popleft()
-                    try:
+                    with YoutubeDL(
+                        {
+                            "progress_hooks": [user.progress.emit],
+                            **self.opts,
+                        }
+                    ) as ytdl:
                         user.run(ytdl)
-                    except Exception as e:
-                        self.err.emit(e)
-
-                except IndexError:
-                    pass
-
-                QThread.msleep(250)  # sleep for 250 ms to avoid busy waiting
+                except Exception as e:
+                    self.err.emit(e)
+            except IndexError:
+                pass
 
     def stop(self):
         self.running = False
