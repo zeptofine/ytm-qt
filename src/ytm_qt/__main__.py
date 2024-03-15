@@ -1,20 +1,49 @@
 import contextlib
 import sys
 from pathlib import Path
+from pprint import pprint
 from queue import Queue
 
 import darkdetect as dd
 from PySide6.QtCore import (
+    QEvent,
+    QMimeData,
+    QPoint,
+    QPointF,
     Qt,
     QThreadPool,
     QUrl,
+    Signal,
     Slot,
 )
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import (
+    QAction,
+    QCloseEvent,
+    QDrag,
+    QDragEnterEvent,
+    QDragLeaveEvent,
+    QDragMoveEvent,
+    QDropEvent,
+    QEnterEvent,
+    QFont,
+    QFontMetrics,
+    QIcon,
+    QKeySequence,
+    QMouseEvent,
+    QPixmap,
+)
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
     QDockWidget,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
     QMainWindow,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QWidget,
 )
 
@@ -33,6 +62,7 @@ from .fonts import Fonts
 from .header import Header
 from .icons import Icons
 from .playlist_generators.op_wrapper import OperationWrapper
+from .playlist_generators.song_ops import OperationSerializer
 from .playlists import PlaylistDock, PlaylistView
 from .song_widget import SongWidget
 from .threads.download_icons import DownloadIconProvider
@@ -142,6 +172,13 @@ class MainWindow(QMainWindow):
         self.main_w = QWidget()
         self.setCentralWidget(self.main_w)
 
+        self.save_action = QAction(text="Save", parent=self)
+        self.save_action.setShortcut(QKeySequence.StandardKey.Save)
+        self.save_action.triggered.connect(self.save_queue)
+        self.addAction(self.save_action)
+
+        self.opser: OperationSerializer[SongWidget] = OperationSerializer.default()
+
     @Slot(str)
     def extract_url(self, url: str):
         request = YTMExtractInfo(url, parent=self)
@@ -173,6 +210,12 @@ class MainWindow(QMainWindow):
 
             case ResponseTypes.SEARCH:
                 _search: YTMSearchResponse = info  # type: ignore
+
+    def save_queue(self):
+        print("Saving")
+        ops = self.play_queue_op.generate_operations()
+        print(ops)
+        pprint(self.opser.to_dict(ops, song_serializer=lambda s: s.data_id))
 
     def closeEvent(self, event: QCloseEvent) -> None:
         with contextlib.suppress(Exception):

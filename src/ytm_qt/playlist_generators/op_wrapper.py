@@ -89,7 +89,7 @@ class OperationWrapper(QWidget):
         self.widgets.setContentsMargins(0, 0, 0, 0)
         self.widgets.setSpacing(0)
 
-        self.mode: type[SongOperation] = PlayOnce
+        self.mode: type[RecursiveSongOperation[SongWidget]] = PlayOnce
         self.mode_settings = operation_settings.get(self.mode).from_kwargs({})
         self.mode_settings_holder = QHBoxLayout()
         self.mode_settings_holder.setContentsMargins(0, 0, 0, 0)
@@ -237,7 +237,7 @@ class OperationWrapper(QWidget):
             self.add_item(widget, idx)
             idx += 1
 
-    def generate_operations(self) -> SongOperation:
+    def generate_operations(self) -> RecursiveSongOperation[SongWidget]:
         ops: list[SongOperation] = []
         for widget in self.widgets:
             if isinstance(widget, SongWidget):

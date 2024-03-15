@@ -1,4 +1,5 @@
 import json
+import uuid
 from collections.abc import Sequence
 from datetime import timedelta
 from pathlib import Path
@@ -128,6 +129,7 @@ class SongWidget(QFrame):
         parent=None,
     ):
         super().__init__(parent)
+        self.uuid = uuid.uuid4()
         self.setObjectName("SongWidget")
         self.setMouseTracking(True)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
@@ -147,6 +149,8 @@ class SongWidget(QFrame):
 
         self.thumbnail_path = cache.thumbnail
         self.thumbnail_label = ThumbnailLabel(self.icons, playable, self)
+
+        self.data_id = self.metadata["id"]
 
         self.data_title = self.metadata["title"]
         self.title_label = ElidedTextLabel(text=self.data_title, parent=self)
@@ -269,4 +273,4 @@ class SongWidget(QFrame):
         self.play.emit()
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.data_title!r})"
+        return f"{self.__class__.__name__}({self.data_id!r}, {self.data_title!r}, uuid={self.uuid!r})"

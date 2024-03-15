@@ -95,7 +95,6 @@ class Player(QWidget):
         self.sublayout.addWidget(self.previous_label, 0, 0, 1, 3)
         self.sublayout.addWidget(self.current_label, 1, 0, 1, 3)
         self.sublayout.addWidget(self.next_label, 2, 0, 1, 3)
-        self.sublayout.addWidget(self.progress_bar, 3, 0, 1, 4)
         self.sublayout.addWidget(self.controller, 4, 0, 1, 1)
         self.sublayout.addWidget(self.progress_display, 4, 1)
         self.sublayout.addWidget(self.volume_slider, 4, 3)

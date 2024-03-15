@@ -1,11 +1,10 @@
-import itertools
 import random
 from abc import abstractmethod
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Iterable
 from dataclasses import dataclass
 from enum import Enum
 from functools import cache
-from typing import ClassVar
+from typing import TypedDict, Union
 
 from ytm_qt.icons import Icons
 
@@ -54,6 +53,10 @@ class RecursiveSongOperation[T](SongOperation[T]):
     def is_valid(self) -> bool:
         return len(self.songs) > 0 and all(s.is_valid() for s in self.songs)
 
+    @abstractmethod
+    def get_kwargs(self) -> dict:
+        return {}
+
 
 @dataclass
 class SinglePlay[T](SongOperation[T]):
@@ -90,6 +93,9 @@ class LoopNTimes[T](RecursiveSongOperation[T]):
         for _ in range(self.times):
             for song in self.songs:
                 yield from song.get()
+
+    def get_kwargs(self):
+        return {"times": self.times}
 
 
 @dataclass
@@ -139,3 +145,59 @@ def get_mode_icons(icons: Icons):
         RandomPlay: icons.shuffle,
         RandomPlayForever: icons.shuffle_bold,
     }
+
+
+SongOpJson = str
+
+
+class RecursiveOperationDict(TypedDict):
+    key: str
+    songs: list[Union["RecursiveOperationDict", SongOpJson]]
+    settings: dict
+
+
+class OperationSerializer[T]:
+    def __init__(self, operations: Iterable[type[RecursiveSongOperation[T]]]):
+        self.operations = {op.key(): op for op in operations}
+
+    @classmethod
+    def default(cls):
+        return cls(
+            [
+                PlayOnce,
+                LoopNTimes,
+                Stretch,
+                LoopWholeList,
+                RandomPlay,
+                RandomPlayForever,
+            ]
+        )
+
+    def to_dict(
+        self, sop: RecursiveSongOperation[T], song_serializer: Callable[[T], SongOpJson]
+    ) -> RecursiveOperationDict:
+        dct: RecursiveOperationDict = {"key": sop.key(), "settings": sop.get_kwargs(), "songs": []}
+        songs = []
+        for song in sop.songs:
+            if isinstance(song, RecursiveSongOperation):
+                songs.append(self.to_dict(song, song_serializer))
+            elif isinstance(song, SinglePlay):
+                songs.append(song_serializer(song.song))
+        dct["songs"] = songs
+
+        return dct
+
+    def from_dict(
+        self,
+        d: RecursiveOperationDict,
+        song_factory: Callable[[SongOpJson], T],
+    ) -> RecursiveSongOperation[T]:
+        assert d["key"] in self.operations
+        mode = self.operations[d["key"]]
+        songs = []
+        for song in d["songs"]:
+            if isinstance(song, SongOpJson):
+                songs.append(SinglePlay(song_factory(song)))
+            else:
+                songs.append(self.from_dict(song, song_factory))
+        return mode(songs, **d["settings"])
