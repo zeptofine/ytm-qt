@@ -5,6 +5,7 @@ from pprint import pprint
 from queue import Queue
 
 import darkdetect as dd
+import orjson
 from PySide6.QtCore import (
     QEvent,
     QMimeData,
@@ -46,6 +47,8 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QWidget,
 )
+
+from ytm_qt.playlist_generators.song_ops import RecursiveOperationDict
 
 from .audio_player import PlayerDock
 from .cache_handlers import CacheHandler
@@ -115,6 +118,7 @@ class MainWindow(QMainWindow):
         self.cache_dir = Path("cache")
         self.cache = CacheHandler(self.cache_dir)
         self.cache.load()
+        self.queue_saved_path = self.cache_dir / "queue.json"
 
         self.ytdlp_queue: Queue[YTDLUser] = Queue()
         self.ytdlp_thread = YoutubeDLProvider(opts, self.ytdlp_queue)
@@ -211,11 +215,19 @@ class MainWindow(QMainWindow):
             case ResponseTypes.SEARCH:
                 _search: YTMSearchResponse = info  # type: ignore
 
+    def serialize_queue(self) -> RecursiveOperationDict:
+        return self.opser.to_dict(
+            self.play_queue_op.generate_operations(),
+            song_serializer=lambda s: s.data_id,
+        )
+
     def save_queue(self):
         print("Saving")
-        ops = self.play_queue_op.generate_operations()
-        print(ops)
-        pprint(self.opser.to_dict(ops, song_serializer=lambda s: s.data_id))
+        serialized = self.serialize_queue()
+        with self.queue_saved_path.open("wb") as f:
+            f.write(orjson.dumps(serialized))
+
+    def load_queue(self): ...
 
     def closeEvent(self, event: QCloseEvent) -> None:
         with contextlib.suppress(Exception):
