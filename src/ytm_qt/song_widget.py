@@ -175,7 +175,6 @@ class SongWidget(QFrame):
 
         self.download_progress_frame = QFrame(self)
         self.download_progress_frame.setStyleSheet("background: rgba(0, 0, 0, 100); outline: 1px solid green")
-        self.download_progress_frame.setGeometry(self.thumbnail_label.geometry())
         self.download_progress_frame.hide()
 
     @property
@@ -233,6 +232,7 @@ class SongWidget(QFrame):
             print(f"Metadata is None, assuming URL is {url}")
 
         self.download_progress_frame.show()
+        self.__update_download_geometry(0)
         request = YTMDownload(QUrl(url), parent=self)
         request.processed.connect(self._song_gathered)
         request.progress.connect(self.__download_progress)
@@ -249,14 +249,14 @@ class SongWidget(QFrame):
 
         def maprange(b1, b2, s):
             # b1 + ((s - a1) * (b2 - b1) / (a2 - a1))
-            return b1 + (s * (b2 - b1))
+            return b1 + ((s - 1) * (b2 - b1) / -1)
 
-        top = maprange(geometry.top(), geometry.bottom(), v)
+        h = maprange(geometry.top(), geometry.bottom(), v)
         geometry = QRect(
             geometry.left(),
-            int(top),
+            geometry.top(),
             geometry.width(),
-            int(geometry.height() - top),
+            int(h),
         )
         self.download_progress_frame.setGeometry(geometry)
 

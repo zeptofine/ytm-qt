@@ -110,7 +110,6 @@ class Player(QWidget):
         print(m)
         self.manager = m
         self.move_next()
-        self.try_play()
 
     def try_play(self):
         if self.manager is not None and self.manager.current_song is not None:
