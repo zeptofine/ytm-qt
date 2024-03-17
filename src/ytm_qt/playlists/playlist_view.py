@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..song_widget import SongWidget
+from ..song_widget.song_widget import SongWidget
 from .list_view import ListView
 
 

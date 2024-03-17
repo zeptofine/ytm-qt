@@ -70,7 +70,7 @@ from .icons import Icons
 from .playlist_generators.op_wrapper import OperationWrapper
 from .playlist_generators.song_ops import OperationSerializer
 from .playlists import PlaylistDock, PlaylistView
-from .song_widget import SongWidget
+from .song_widget.song_widget import SongWidget
 from .threads.download_icons import DownloadIconProvider
 from .threads.ytdlrunner import YoutubeDLProvider, YTDLUser, YTMDownload, YTMExtractInfo
 

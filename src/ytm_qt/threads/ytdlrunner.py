@@ -10,6 +10,7 @@ from PySide6.QtCore import (
     Signal,
 )
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import DownloadError
 from ytm_qt.dicts import (
     YTMDownloadResponse,
     YTMResponse,
@@ -17,7 +18,7 @@ from ytm_qt.dicts import (
 
 
 class YTDLUser(QObject):
-    error = Signal(str)
+    error = Signal(Exception)
     started = Signal()
     finished = Signal()
     progress = Signal(dict)
@@ -44,10 +45,12 @@ class YTMExtractInfo(YTDLUser):
         self.do_process = process
 
     def process(self, ytdl: YoutubeDL) -> None:
-        info = ytdl.extract_info(self.url, download=False, process=self.do_process)
-
+        try:
+            info = ytdl.extract_info(self.url, download=False, process=self.do_process)
+        except DownloadError as e:
+            self.error.emit(e)
         if info is None:
-            self.error.emit("Failed to extract info")
+            self.error.emit(Exception("Info is None"))
         else:
             self.processed.emit(info)
 

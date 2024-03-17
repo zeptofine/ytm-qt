@@ -2,7 +2,7 @@ from PySide6.QtCore import (
     QObject,
 )
 
-from ytm_qt.song_widget import SongWidget
+from ytm_qt.song_widget.song_widget import SongWidget
 
 from .song_ops import InfiniteLoopType, RecursiveSongOperation
 

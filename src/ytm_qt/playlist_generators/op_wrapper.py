@@ -45,7 +45,7 @@ from PySide6.QtWidgets import (
 
 from ytm_qt import CacheHandler, Icons
 from ytm_qt.dataclasses import OperationRequest, SongRequest
-from ytm_qt.song_widget import SongWidget
+from ytm_qt.song_widget.song_widget import SongWidget
 from ytm_qt.threads.download_icons import DownloadIcon
 from ytm_qt.threads.ytdlrunner import YTMDownload
 

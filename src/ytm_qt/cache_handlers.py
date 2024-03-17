@@ -151,7 +151,7 @@ class CacheHandler:
 
     def load(self):
         if self.__config_pth.exists():
-            with self.__config_pth.open() as f:
+            with self.__config_pth.open("r", encoding="utf-8") as f:
                 for k, v in orjson.loads(f.read()).items():
                     self.__dct.update({k: CacheItem.from_dict(self, k, v)})
 

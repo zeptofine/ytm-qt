@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
 from ytm_qt import CacheHandler, CacheItem, Fonts
 from ytm_qt.dicts import YTMSmallVideoResponse
 from ytm_qt.icons import Icons
-from ytm_qt.song_widget import SongWidget
+from ytm_qt.song_widget.song_widget import SongWidget
 from ytm_qt.threads.download_icons import DownloadIcon
 
 from .list_view import ListView
