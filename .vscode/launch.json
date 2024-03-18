@@ -10,6 +10,13 @@
             "request": "launch",
             "program": ".venv/bin/ytm-qt",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: ytm-qt (Win)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": ".venv/Scripts/ytm-qt.exe",
+            "console": "integratedTerminal"
         }
     ]
 }
