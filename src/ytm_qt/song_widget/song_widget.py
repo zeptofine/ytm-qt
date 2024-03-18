@@ -96,6 +96,7 @@ class SongWidget(QFrame):
         self.layout_.addWidget(self.title_label, 0, 1)
         self.layout_.addWidget(self.author_and_duration_label, 1, 1)
 
+        self.__song_requested = False
         self.download_progress_frame = DownloadProgressFrame(self.icons, parent=self)
         self.download_progress_frame.setGeometry(self.thumbnail_label.label.geometry().adjusted(0, 0, 1, 1))
 
@@ -159,6 +160,7 @@ class SongWidget(QFrame):
         request.processed.connect(self._song_gathered)
         request.progress.connect(self.__download_progress)
         self.request_song.emit(request)
+        self.__song_requested = True
 
     def __download_progress(self, progress: dict):
         if progress["status"] == "downloading" and (total := progress.get("total_bytes")) is not None:
@@ -181,7 +183,7 @@ class SongWidget(QFrame):
         return self.data.audio
 
     def ensure_audio_exists(self):
-        if not self.data.audio.exists():
+        if not self.data.audio.exists() and not self.__song_requested:
             self._request_song()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
