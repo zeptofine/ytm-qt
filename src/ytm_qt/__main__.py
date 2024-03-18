@@ -125,8 +125,9 @@ class MainWindow(QMainWindow):
         self.queue_saved_path = self.cache_dir / "queue.json"
 
         self.ytdlp_queue: deque[YTDLUser] = deque()
-        self.ytdlp_thread = YoutubeDLProvider(opts, self.ytdlp_queue)
-        self.ytdlp_thread.start()
+        self.ytdlp_providers = [YoutubeDLProvider(opts, self.ytdlp_queue) for _ in range(2)]
+        for provider in self.ytdlp_providers:
+            provider.start()
 
         self.icon_download_queue = Queue()
         self.icon_threadpool = QThreadPool(self)
@@ -255,9 +256,11 @@ class MainWindow(QMainWindow):
             self.cache.save()
             df.write_ipc(self.db_path)
 
-            self.ytdlp_thread.stop()
-            self.ytdlp_thread.wait(10_000)
-            self.ytdlp_thread.terminate()
+            for provider in self.ytdlp_providers:
+                provider.stop()
+                provider.wait(10_000)
+                provider.terminate()
+
             for provider in self.icon_providers:
                 provider.stop()
 
