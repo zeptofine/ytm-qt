@@ -144,6 +144,7 @@ class MainWindow(QMainWindow):
 
         self.play_queue_op = OperationWrapper(self.icons, self.cache, parent=self)
         self.play_queue_op.manager_generated.connect(self.player_dock.player.set_manager)
+        self.player_dock.player.request_manager.connect(self.play_queue_op.validate_operations)
         self.play_queue_op.request_song.connect(self.song_requested)
         self.play_queue_dock = QDockWidget()
         self.play_queue_dock.setWidget(self.play_queue_op)

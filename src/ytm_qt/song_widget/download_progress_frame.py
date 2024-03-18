@@ -100,7 +100,6 @@ class DownloadProgressFrame(QFrame):
             )
         painter.setOpacity(1 - self.checkmark_visibility)
         c = self.geometry().center()
-        painter.drawEllipse(c, 10, 10)
         painter.drawArc(
             QRect(
                 c.x() - 20,
@@ -109,8 +108,7 @@ class DownloadProgressFrame(QFrame):
                 c.y() + 15,
             ),
             0,
-            16 * 360,
-            # int(self.progress * (16 * 360)),
+            int(self.progress * (16 * 360)),
         )
         f1 = ball_func(((self.duration_v - 0.1) % 1) * 360) * 3
         f2 = ball_func(self.duration_v * 360) * 3

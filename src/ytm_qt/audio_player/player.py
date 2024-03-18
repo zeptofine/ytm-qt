@@ -85,6 +85,8 @@ QSlider::sub-page:horizontal {
 
 
 class Player(QWidget):
+    request_manager = Signal()
+
     def __init__(self, icons: Icons, fonts: Fonts, parent=None):
         super().__init__(parent)
         self.icons = icons
@@ -148,7 +150,11 @@ class Player(QWidget):
         self.move_next()
 
     def try_play(self):
-        if self.manager is not None and self.manager.current_song is not None:
+        if self.manager is None:
+            self.request_manager.emit()
+            return
+
+        if self.manager.current_song is not None:
             if self.manager.current_song.filepath.exists():
                 self.play(self.manager.current_song.filepath)
             else:
@@ -227,6 +233,9 @@ class Player(QWidget):
     # Pause / Play button
     @Slot()
     def resume(self):
+        if self.manager is None:
+            self.request_manager.emit()
+            return
         self.audio_player.update_playing(True)
         self.controller.set_playing(True)
 
