@@ -17,7 +17,7 @@ class ThumbnailLabel(QWidget):
     def __init__(self, icons: Icons, playable: bool, parent=None):
         super().__init__(parent)
         self.setMouseTracking(True)
-        self.setMaximumSize(50, 50)
+        self.setFixedSize(50, 50)
 
         self.icons = icons
 

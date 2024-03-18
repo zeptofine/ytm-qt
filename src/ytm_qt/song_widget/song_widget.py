@@ -113,25 +113,7 @@ class SongWidget(QFrame):
 
         self.__song_requested = False
         self.download_progress_frame = DownloadProgressFrame(self.icons, parent=self)
-
-        self.__height = 50
-        self.invalid_anim = QVariantAnimation(self)
-        self.invalid_anim.setStartValue(50)
-        self.invalid_anim.setEndValue(30)
-        self.invalid_anim.setDuration(1_000)
-        self.invalid_anim.setEasingCurve(QEasingCurve.Type.OutExpo)
-        self.invalid_anim.valueChanged.connect(self.set_height)
-
-    def set_height(self, v: int):
-        self.__height = v
-        self.update()
-
-    def paintEvent(self, event: QPaintEvent) -> None:
-        self.setFixedHeight(self.__height)
-        self.thumbnail_label.setFixedSize(self.__height, self.__height)
-        self.download_progress_frame.setGeometry(self.thumbnail_label.geometry())
-
-        return super().paintEvent(event)
+        self.download_progress_frame.setGeometry(self.thumbnail_label.geometry().adjusted(0, 0, 1, 1))
 
     @property
     def request(self):
@@ -168,7 +150,6 @@ class SongWidget(QFrame):
         drag.exec(Qt.DropAction.MoveAction)
 
     def set_invalid(self):
-        self.invalid_anim.start()
         self.download_progress_frame.set_status(DownloadStatus.ERROR)
 
     @property
