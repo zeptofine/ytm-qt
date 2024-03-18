@@ -22,7 +22,7 @@ class ThumbnailLabel(QWidget):
         self.icons = icons
 
         self.label = QLabel(self)
-        self.label.setMaximumSize(50, 50)
+        self.label.setFixedSize(50, 50)
         self.playable = playable
         if playable:
             self.highlighted_label = QLabel(self)
