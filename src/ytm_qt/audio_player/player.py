@@ -145,6 +145,7 @@ class Player(QWidget):
     # Track manager
     @Slot(TrackManager)
     def set_manager(self, m: TrackManager):
+        print("manager:")
         print(m)
         self.manager = m
         self.move_next()

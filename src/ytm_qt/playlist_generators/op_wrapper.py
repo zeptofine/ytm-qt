@@ -271,7 +271,8 @@ class OperationWrapper(QWidget):
     def validate_operations(self, ops: SongOperation | None = None):
         ops = ops or self.generate_operations()
         assert isinstance(ops, RecursiveSongOperation)
-        manager = TrackManager(ops)
+
+        manager = TrackManager(ops.simplify())
         self.manager_generated.emit(manager)
 
     @Slot()

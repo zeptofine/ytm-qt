@@ -57,6 +57,23 @@ class RecursiveSongOperation[T](SongOperation[T]):
     def get_kwargs(self) -> dict:
         return {}
 
+    def simplify(self):
+        ops = []
+        for song in self.songs:
+            if isinstance(song, RecursiveSongOperation):
+                if not song.is_valid():
+                    continue
+
+                ops.append(song.simplify())
+
+                if song.is_infinite() == InfiniteLoopType.ALWAYS:
+                    break
+
+            if isinstance(song, SinglePlay):
+                ops.append(song)
+
+        return self.__class__(songs=ops, **self.get_kwargs())
+
 
 @dataclass
 class SinglePlay[T](SongOperation[T]):

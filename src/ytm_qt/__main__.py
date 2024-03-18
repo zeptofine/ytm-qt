@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("ytm-qt")
-        self.resize(1200, 400)
+        self.resize(1200, 600)
 
         col = ("black", "white")[bool(dd.isDark())]
 
