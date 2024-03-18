@@ -34,6 +34,7 @@ class Icons:
     c_right: QIcon
     pan_zoom: QIcon
     download_done: QIcon
+    warning: QIcon
 
     @classmethod
     @cache
@@ -73,6 +74,7 @@ class Icons:
             c_right=arrows("chevron_right.svg"),
             pan_zoom=google("pan_zoom.svg"),
             download_done=downloading("done.svg"),
+            warning=google("warning.svg"),
         )
 
 

@@ -15,6 +15,7 @@ class DownloadStatus(Enum):
     NOT_DOWNLOADED = 0
     DOWNLOADING = 1
     FINISHED = 2
+    ERROR = 3
 
 
 class DownloadProgressFrame(QFrame):
@@ -36,15 +37,25 @@ class DownloadProgressFrame(QFrame):
         self.opacity_out.finished.connect(self.fade_out_finished)
         self.opacity = 0.0
 
-        self.checkmark_pm = icons.download_done.pixmap(512, 512)
+        self.icons = icons
+        self.pm = icons.download_done.pixmap(64, 64)
+
         self.reveal_checkmark = QVariantAnimation(self)
         self.reveal_checkmark.setEasingCurve(QEasingCurve.Type.OutExpo)
         self.reveal_checkmark.setDuration(600)
         self.reveal_checkmark.setStartValue(0)
         self.reveal_checkmark.setEndValue(100)
-        self.reveal_checkmark.valueChanged.connect(self.set_checkmark_visibility)
+        self.reveal_checkmark.valueChanged.connect(self.set_pm_visibility)
         self.reveal_checkmark.finished.connect(self.opacity_out.start)
-        self.checkmark_visibility = 0.0
+        self.pm_visibility = 0.0
+
+        self.reveal_error = QVariantAnimation(self)
+        self.reveal_error.setEasingCurve(QEasingCurve.Type.OutExpo)
+        self.reveal_error.setDuration(600)
+        self.reveal_error.setStartValue(0)
+        self.reveal_error.setEndValue(100)
+        self.reveal_error.valueChanged.connect(self.set_pm_visibility)
+        self.err_visibility = 0
 
         self.duration = QVariantAnimation(self)
         self.duration.setDuration(2_000)
@@ -61,8 +72,8 @@ class DownloadProgressFrame(QFrame):
         self.opacity = v / 100
         self.update()
 
-    def set_checkmark_visibility(self, v: int):
-        self.checkmark_visibility = v / 100
+    def set_pm_visibility(self, v: int):
+        self.pm_visibility = v / 100
         self.update()
 
     def set_duration(self, v: int):
@@ -70,7 +81,7 @@ class DownloadProgressFrame(QFrame):
         self.update()
 
     def fade_out_finished(self):
-        self.checkmark_visibility = 0
+        self.pm_visibility = 0
         self.duration.stop()
 
     def paintEvent(self, event: QPaintEvent) -> None:
@@ -81,24 +92,24 @@ class DownloadProgressFrame(QFrame):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setOpacity(self.opacity)
         painter.fillRect(event.rect(), Qt.GlobalColor.black)
-        if self.checkmark_visibility > 0:
+        if self.pm_visibility > 0:
             painter.drawPixmap(
                 QRect(
                     0,
                     0,
-                    int(self.checkmark_visibility * self.width()),
+                    int(self.pm_visibility * self.width()),
                     self.height(),
                 ),
-                self.checkmark_pm.copy(
+                self.pm.copy(
                     QRect(
                         0,
                         0,
-                        int(self.checkmark_pm.width() * self.checkmark_visibility),
-                        self.checkmark_pm.height(),
+                        int(self.pm.width() * self.pm_visibility),
+                        self.pm.height(),
                     )
                 ),
             )
-        painter.setOpacity(1 - self.checkmark_visibility)
+        painter.setOpacity(1 - self.pm_visibility)
         c = self.geometry().center()
         painter.drawArc(
             QRect(
@@ -128,6 +139,10 @@ class DownloadProgressFrame(QFrame):
             self.duration.start()
         elif status == DownloadStatus.FINISHED:
             self.reveal_checkmark.start()
+        elif status == DownloadStatus.ERROR:
+            print("Starting err")
+            self.pm = self.icons.warning.pixmap(64, 64)
+            self.reveal_error.start()
 
     def update_progress(self, progress: float, update=False):  # 0..=1
         self.progress = progress

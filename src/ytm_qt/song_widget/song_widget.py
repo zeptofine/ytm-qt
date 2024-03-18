@@ -1,4 +1,5 @@
 import math
+import time
 import uuid
 from datetime import timedelta
 from pathlib import Path
@@ -7,12 +8,25 @@ from typing import Self
 
 import orjson
 from PySide6 import QtCore
-from PySide6.QtCore import QMimeData, QPropertyAnimation, Qt, QUrl, Signal, Slot
+from PySide6.QtCore import (
+    QEasingCurve,
+    QMimeData,
+    QPoint,
+    QPropertyAnimation,
+    QRect,
+    Qt,
+    QUrl,
+    QVariantAnimation,
+    Signal,
+    Slot,
+)
 from PySide6.QtGui import (
     QBrush,
     QDrag,
     QIcon,
     QMouseEvent,
+    QPainter,
+    QPaintEvent,
     QPen,
     QPixmap,
 )
@@ -23,6 +37,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QVBoxLayout,
+    QWidget,
 )
 from ytm_qt import CacheItem, Fonts, Icons
 from ytm_qt.dataclasses import SongRequest
@@ -98,7 +113,25 @@ class SongWidget(QFrame):
 
         self.__song_requested = False
         self.download_progress_frame = DownloadProgressFrame(self.icons, parent=self)
-        self.download_progress_frame.setGeometry(self.thumbnail_label.label.geometry().adjusted(0, 0, 1, 1))
+
+        self.__height = 50
+        self.invalid_anim = QVariantAnimation(self)
+        self.invalid_anim.setStartValue(50)
+        self.invalid_anim.setEndValue(30)
+        self.invalid_anim.setDuration(1_000)
+        self.invalid_anim.setEasingCurve(QEasingCurve.Type.OutExpo)
+        self.invalid_anim.valueChanged.connect(self.set_height)
+
+    def set_height(self, v: int):
+        self.__height = v
+        self.update()
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        self.setFixedHeight(self.__height)
+        self.thumbnail_label.setFixedSize(self.__height, self.__height)
+        self.download_progress_frame.setGeometry(self.thumbnail_label.geometry())
+
+        return super().paintEvent(event)
 
     @property
     def request(self):
@@ -134,6 +167,10 @@ class SongWidget(QFrame):
 
         drag.exec(Qt.DropAction.MoveAction)
 
+    def set_invalid(self):
+        self.invalid_anim.start()
+        self.download_progress_frame.set_status(DownloadStatus.ERROR)
+
     @property
     def selected(self):
         return self._selected
@@ -147,7 +184,7 @@ class SongWidget(QFrame):
             self.setStyleSheet("")
 
     # TODO: use ✓ and ✘ or icons to represent downloaded status
-    def _request_song(self):
+    def request_song_(self):
         if self.data.metadata is not None:
             url = self.data.metadata["url"]
         else:
@@ -159,6 +196,7 @@ class SongWidget(QFrame):
         request = YTMDownload(QUrl(url), parent=self)
         request.processed.connect(self._song_gathered)
         request.progress.connect(self.__download_progress)
+        request.error.connect(self.set_invalid)
         self.request_song.emit(request)
         self.__song_requested = True
 
@@ -184,7 +222,7 @@ class SongWidget(QFrame):
 
     def ensure_audio_exists(self):
         if not self.data.audio.exists() and not self.__song_requested:
-            self._request_song()
+            self.request_song_()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if event.buttons() == Qt.MouseButton.LeftButton:  # Dragging

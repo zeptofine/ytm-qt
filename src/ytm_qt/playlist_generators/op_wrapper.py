@@ -103,6 +103,8 @@ class OperationWrapper(QWidget):
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(0)
 
+        self.download_all = QAction("Download all", parent=self)
+        self.download_all.triggered.connect(self.download_all_)
         self.add_group_action = QAction("Add group", parent=self)
         self.add_group_action.triggered.connect(self.add_group)
         self.group_action = QAction(text="Group selected", parent=self)
@@ -113,6 +115,7 @@ class OperationWrapper(QWidget):
         self.clear_action = QAction(text="Clear", parent=self)
         self.clear_action.triggered.connect(self.clear)
 
+        self.addAction(self.download_all)
         self.addAction(self.add_group_action)
         self.addAction(self.generate_action)
         self.addAction(self.clear_action)
@@ -274,6 +277,14 @@ class OperationWrapper(QWidget):
 
         manager = TrackManager(ops.simplify())
         self.manager_generated.emit(manager)
+
+    @Slot()
+    def download_all_(self):
+        for song in self.widgets:
+            if isinstance(song, OperationWrapper):
+                song.download_all_()
+            else:
+                song.ensure_audio_exists()
 
     @Slot()
     def add_group(self):
