@@ -51,8 +51,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ytm_qt.playlist_generators.song_ops import RecursiveOperationDict
-
 from .audio_player import PlayerDock
 from .cache_handlers import CacheHandler
 from .dicts import (
@@ -68,7 +66,7 @@ from .fonts import Fonts
 from .header import Header
 from .icons import Icons
 from .playlist_generators.op_wrapper import OperationWrapper
-from .playlist_generators.song_ops import OperationSerializer
+from .playlist_generators.song_ops import OperationSerializer, RecursiveOperationDict
 from .playlists import PlaylistDock, PlaylistView
 from .song_widget.song_widget import SongWidget
 from .threads.download_icons import DownloadIconProvider
@@ -107,7 +105,7 @@ class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("ytm-qt")
-        self.resize(1200, 800)
+        self.resize(1200, 400)
 
         col = ("black", "white")[bool(dd.isDark())]
 
@@ -211,7 +209,6 @@ class MainWindow(QMainWindow):
 
     @Slot(YTMDownload)
     def song_requested(self, request: YTMDownload):
-        print(f"Request recieved: {request}")
         self.ytdlp_queue.appendleft(request)
 
     @Slot(SongWidget)

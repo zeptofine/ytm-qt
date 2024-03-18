@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 
-from PySide6.QtGui import QColor, QIcon, QPixmap, Qt
+from PySide6.QtGui import QColor, QIcon, QImage, QPixmap, Qt
 
 ICONS_PATH = Path(__file__).parent
 
@@ -33,8 +33,6 @@ class Icons:
     c_left: QIcon
     c_right: QIcon
     pan_zoom: QIcon
-    download: QIcon
-    downloading: QIcon
     download_done: QIcon
 
     @classmethod
@@ -74,8 +72,6 @@ class Icons:
             c_left=arrows("chevron_left.svg"),
             c_right=arrows("chevron_right.svg"),
             pan_zoom=google("pan_zoom.svg"),
-            download=downloading("download.svg"),
-            downloading=downloading("downloading.svg"),
             download_done=downloading("done.svg"),
         )
 

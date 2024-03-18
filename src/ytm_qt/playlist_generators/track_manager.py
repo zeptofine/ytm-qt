@@ -1,6 +1,4 @@
-from PySide6.QtCore import (
-    QObject,
-)
+from PySide6.QtCore import QObject, Signal
 
 from ytm_qt.song_widget.song_widget import SongWidget
 
@@ -8,6 +6,8 @@ from .song_ops import InfiniteLoopType, RecursiveSongOperation
 
 
 class TrackManager(QObject):
+    position_changed = Signal()
+
     def __init__(self, songops: RecursiveSongOperation, parent=None):
         super().__init__(parent)
         self.songops = songops
@@ -23,12 +23,16 @@ class TrackManager(QObject):
         else:
             ni = self.song_buffer[self.current_index]
         self.current_song = ni
+        self.position_changed.emit()
         return ni
 
     def move_previous(self):
         assert len(self.song_buffer) > 0
+        old_idx = self.current_index
         self.current_index = max(self.current_index - 1, 0)
         self.current_song = self.song_buffer[self.current_index]
+        if old_idx != self.current_index:
+            self.position_changed.emit()
         return self.current_song
 
     def get_next(self) -> SongWidget | None:
