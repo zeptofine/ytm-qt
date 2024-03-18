@@ -33,6 +33,9 @@ class Icons:
     c_left: QIcon
     c_right: QIcon
     pan_zoom: QIcon
+    download: QIcon
+    downloading: QIcon
+    download_done: QIcon
 
     @classmethod
     @cache
@@ -42,8 +45,11 @@ class Icons:
         def google(p):
             return render_icon(ICONS_PATH / "google" / p, col)
 
-        def garrows(p):
+        def arrows(p):
             return google(Path("arrows") / p)
+
+        def downloading(p):
+            return google(Path("downloading") / p)
 
         def gplay(p):
             return google(Path("playback") / p)
@@ -53,8 +59,8 @@ class Icons:
             pause_button=gplay("pause.svg"),
             more_horiz=google("more_horiz.svg"),
             more_vert=google("more_vert.svg"),
-            next=garrows("last_page.svg"),
-            prev=garrows("first_page.svg"),
+            next=arrows("last_page.svg"),
+            prev=arrows("first_page.svg"),
             repeat=gplay("repeat_FILL1_wght400.svg"),
             repeat_bold=gplay("repeat_FILL1_wght700.svg"),
             repeat_one=gplay("repeat_one_FILL1_wght700.svg"),
@@ -63,11 +69,14 @@ class Icons:
             group=google("group.svg"),
             select=google("select.svg"),
             deselect=google("remove_selection.svg"),
-            c_up=garrows("chevron_up.svg"),
-            c_down=garrows("chevron_down.svg"),
-            c_left=garrows("chevron_left.svg"),
-            c_right=garrows("chevron_right.svg"),
+            c_up=arrows("chevron_up.svg"),
+            c_down=arrows("chevron_down.svg"),
+            c_left=arrows("chevron_left.svg"),
+            c_right=arrows("chevron_right.svg"),
             pan_zoom=google("pan_zoom.svg"),
+            download=downloading("download.svg"),
+            downloading=downloading("downloading.svg"),
+            download_done=downloading("done.svg"),
         )
 
 
