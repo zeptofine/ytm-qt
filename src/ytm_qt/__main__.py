@@ -209,7 +209,7 @@ class MainWindow(QMainWindow):
 
     @Slot(YTMDownload)
     def song_requested(self, request: YTMDownload):
-        self.ytdlp_queue.appendleft(request)
+        self.ytdlp_queue.append(request)
 
     @Slot(SongWidget)
     def playlist_song_clicked(self, song: SongWidget):
