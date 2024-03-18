@@ -8,6 +8,7 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
+from PySide6.QtGui import QResizeEvent
 from PySide6.QtMultimedia import QAudioDevice, QAudioOutput, QMediaDevices, QMediaPlayer
 from PySide6.QtWidgets import (
     QAbstractSlider,
@@ -37,10 +38,42 @@ from .audio_player import AudioPlayer
 
 
 class TrackedSlider(QSlider):
+    STYLE = """
+QSlider::groove:horizontal {
+    margin: 5px 0;
+    border-radius: 1px;
+}
+QSlider::groove:horizontal:hover {
+    margin: 2px 0;
+}
+
+QSlider::handle:horizontal {
+    background: white;
+    width: 5px;
+    height: 2px;
+    border-radius: 5px;
+}
+
+
+QSlider::add-page:horizontal {
+    background: black;
+    margin: 4px 0;
+    border-radius: 1px;
+}
+
+
+QSlider::sub-page:horizontal {
+    background: white;
+    margin: 4px 0;
+    border-radius: 1px;
+}
+
+"""
     force_slide = Signal(int)
 
-    def __init__(self, orientation: Qt.Orientation, parent: QWidget | None = None) -> None:
-        super().__init__(orientation, parent)
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(Qt.Orientation.Horizontal, parent)
+        self.setStyleSheet(self.STYLE)
         self.sliderReleased.connect(self._sliderReleased)
 
     def _sliderReleased(self):
@@ -65,7 +98,8 @@ class Player(QWidget):
 
         self.time = timedelta(milliseconds=0)
         self.duration = timedelta(milliseconds=0)
-        self.progress_bar = TrackedSlider(Qt.Orientation.Horizontal, self)
+        self.progress_bar = TrackedSlider(self)
+        self.progress_bar.setMinimumHeight(25)
         self.progress_bar.force_slide.connect(self.change_position)
         self.progress_display = QLabel(self)
         self.progress_display.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -91,6 +125,7 @@ class Player(QWidget):
         self.next_label = QLabel(self)
 
         self.sublayout = QGridLayout()
+        self.sublayout.setContentsMargins(2, 2, 2, 2)
         self.sublayout.setSpacing(2)
         self.sublayout.addWidget(self.previous_label, 0, 0, 1, 3)
         self.sublayout.addWidget(self.current_label, 1, 0, 1, 3)
@@ -100,6 +135,7 @@ class Player(QWidget):
         self.sublayout.addWidget(self.volume_slider, 4, 3)
 
         self.layout_ = QVBoxLayout(self)
+        self.layout_.setContentsMargins(0, 0, 0, 0)
         self.layout_.setSpacing(0)
         self.layout_.addWidget(self.progress_bar)
         self.layout_.addLayout(self.sublayout)
