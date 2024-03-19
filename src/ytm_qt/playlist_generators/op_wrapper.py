@@ -201,6 +201,8 @@ class OperationWrapper(QWidget):
             group_action.triggered.connect(partial(self.group_widget, widget))
         else:
             widget.ungroup_signal.connect(partial(self.subwidget_ungrouped, widget))
+            widget.request_song.connect(self.request_song)
+            widget.request_new_icon.connect(self.request_new_icon)
 
     def delete_item(self, widget: OperationWrapper | SongWidget):
         self.widgets.remove(widget)
