@@ -108,6 +108,25 @@ class CacheItem:
         return item
 
 
+class CacheObject: ...
+
+
+@dataclass(frozen=True)
+class AudioCacheObj(CacheObject):
+    path: Path
+
+
+@dataclass(frozen=True)
+class ImageCacheObj(CacheObject):
+    atlas_piece: str  # "atlas:<atlas idx>:<piece idx>"
+
+
+class ImageAtlas:
+    def __init__(self, w: int, h: int, iw: int, ih: int):
+        self.atlas_size = (w, h)
+        self.image_size = (iw, ih)
+
+
 class CacheHandler:
     def __init__(self, pth: Path):
         self.__dct: dict[str, CacheItem] = {}
