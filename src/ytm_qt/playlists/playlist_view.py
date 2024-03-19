@@ -12,9 +12,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..operation_dataclasses import OperationRequest, SongRequest
 from ..playlist_generators.song_ops import PlayOnce
-
-from ..dataclasses import OperationRequest, SongRequest
 from ..song_widget.song_widget import SongWidget
 from .list_view import ListView
 

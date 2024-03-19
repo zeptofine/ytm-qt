@@ -40,17 +40,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from ytm_qt import CacheItem, Fonts, Icons
-from ytm_qt.dataclasses import SongRequest
 from ytm_qt.dicts import (
     SongMetaData,
     YTMDownloadResponse,
     YTMSmallVideoResponse,
 )
-from ytm_qt.song_widget.download_progress_frame import DownloadProgressFrame, DownloadStatus
-from ytm_qt.song_widget.elided_text_label import ElidedTextLabel
-from ytm_qt.song_widget.thumbnail_label import ThumbnailLabel
+from ytm_qt.eye_candy.download_progress_frame import DownloadProgressFrame, DownloadStatus
+from ytm_qt.operation_dataclasses import SongRequest
 from ytm_qt.threads.download_icons import DownloadIcon
 from ytm_qt.threads.ytdlrunner import YTMDownload
+
+from .elided_text_label import ElidedTextLabel
+from .thumbnail_label import ThumbnailLabel
 
 
 class SongWidget(QFrame):

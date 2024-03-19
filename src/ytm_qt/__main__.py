@@ -53,7 +53,6 @@ from PySide6.QtWidgets import (
 
 from .audio_player import PlayerDock
 from .cache_handlers import CacheHandler
-from .dataclasses import OperationRequest, SongRequest
 from .dicts import (
     YTMDownloadResponse,
     YTMPlaylistResponse,
@@ -66,6 +65,7 @@ from .enums import ResponseTypes
 from .fonts import Fonts
 from .header import Header
 from .icons import Icons
+from .operation_dataclasses import OperationRequest, SongRequest
 from .playlist_generators.op_wrapper import OperationWrapper
 from .playlist_generators.song_ops import OperationSerializer, RecursiveOperationDict
 from .playlists import PlaylistDock, PlaylistView
@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         self.queue_saved_path = self.cache_dir / "queue.json"
 
         self.ytdlp_queue: deque[YTDLUser] = deque()
-        self.ytdlp_providers = [YoutubeDLProvider(opts, self.ytdlp_queue) for _ in range(2)]
+        self.ytdlp_providers = [YoutubeDLProvider(opts, self.ytdlp_queue) for _ in range(3)]
         for provider in self.ytdlp_providers:
             provider.start()
 
