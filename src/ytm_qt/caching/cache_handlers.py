@@ -7,7 +7,7 @@ from typing import TypedDict
 
 import orjson
 
-from .dicts import SongMetaData, YTMSmallVideoResponse
+from ytm_qt.dicts import SongMetaData, YTMSmallVideoResponse
 
 
 class AudioCache(TypedDict):

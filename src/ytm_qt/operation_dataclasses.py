@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Union
 
-from .cache_handlers import CacheItem
+from .caching import CacheItem
 from .playlist_generators.song_ops import SongOperation
 
 

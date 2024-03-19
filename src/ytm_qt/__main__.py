@@ -52,7 +52,7 @@ from PySide6.QtWidgets import (
 )
 
 from .audio_player import PlayerDock
-from .cache_handlers import CacheHandler
+from .caching import CacheHandler
 from .dicts import (
     YTMDownloadResponse,
     YTMPlaylistResponse,
