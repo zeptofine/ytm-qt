@@ -53,6 +53,7 @@ from PySide6.QtWidgets import (
 
 from .audio_player import PlayerDock
 from .cache_handlers import CacheHandler
+from .dataclasses import OperationRequest, SongRequest
 from .dicts import (
     YTMDownloadResponse,
     YTMPlaylistResponse,
@@ -184,7 +185,8 @@ class MainWindow(QMainWindow):
             fonts=self.fonts,
             parent=self,
         )
-        self.playlist_view.add_to_queue.connect(self.playlist_song_clicked)
+        self.playlist_view.add_to_queue.connect(self.playlist_sampled)
+        self.playlist_view.add_group.connect(self.playlist_sampled)
         self.playlist_dock.setMinimumWidth(300)
         self.playlist_dock.request_new_icon.connect(self.icon_download_queue.put)
         self.playlist_dock.setAllowedAreas(
@@ -214,8 +216,8 @@ class MainWindow(QMainWindow):
         self.ytdlp_queue.append(request)
 
     @Slot(SongWidget)
-    def playlist_song_clicked(self, song: SongWidget):
-        self.play_queue_op.add_song(song.request)
+    def playlist_sampled(self, song: SongRequest | OperationRequest):
+        self.play_queue_op.add_song(song)
 
     @Slot(YTMResponse)
     def info_extracted(self, info: YTMResponse):

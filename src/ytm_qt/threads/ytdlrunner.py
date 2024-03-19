@@ -1,3 +1,4 @@
+import uuid
 from abc import abstractmethod
 from collections import deque
 from collections.abc import Callable
@@ -23,9 +24,11 @@ class YTDLUser(QObject):
     finished = Signal()
     progress = Signal(dict)
 
-    def __init__(self, hook: Callable[[dict], None] | None = None, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.hook = hook
+
+    def key(self):
+        return str(uuid.uuid1())
 
     def run(self, ytdl: YoutubeDL):
         self.started.emit()
@@ -44,6 +47,9 @@ class YTMExtractInfo(YTDLUser):
         self.url = url
         self.do_process = process
 
+    def key(self):
+        return self.url
+
     def process(self, ytdl: YoutubeDL) -> None:
         try:
             info = ytdl.extract_info(self.url, download=False, process=self.do_process)
@@ -61,6 +67,9 @@ class YTMDownload(YTDLUser):
     def __init__(self, url: QUrl, parent=None) -> None:
         super().__init__(parent)
         self.url = url
+
+    def key(self):
+        return self.url
 
     def process(self, ytdl: YoutubeDL) -> None:
         info = ytdl.extract_info(self.url.toString(), download=True)

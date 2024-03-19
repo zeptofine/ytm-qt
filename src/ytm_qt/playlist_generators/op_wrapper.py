@@ -195,17 +195,19 @@ class OperationWrapper(QWidget):
             widget.set_icon()
             widget.clicked.connect(partial(self.widget_clicked, widget))
             del_action = QAction(text="Delete", parent=self)
-            del_action.triggered.connect(partial(self.remove_item, widget))
+            del_action.triggered.connect(partial(self.delete_item, widget))
             widget.addAction(del_action)
             group_action = QAction(text="Group", parent=self)
             group_action.triggered.connect(partial(self.group_widget, widget))
         else:
             widget.ungroup_signal.connect(partial(self.subwidget_ungrouped, widget))
 
-    def remove_item(self, widget: OperationWrapper | SongWidget):
+    def delete_item(self, widget: OperationWrapper | SongWidget):
         self.widgets.remove(widget)
         widget.setParent(None)
+
         print(f"Removed {widget}")
+        widget.destroy()
 
     def move_item(self, item: OperationWrapper | SongWidget, direction: int):
         """Moves an item in the box to a new position.
@@ -228,6 +230,7 @@ class OperationWrapper(QWidget):
     def clear(self):
         for widget in self.widgets:
             widget.setParent(None)
+            widget.destroy()
         self.widgets.clear()
 
     def ungroup_self(self):
@@ -236,7 +239,7 @@ class OperationWrapper(QWidget):
     def subwidget_ungrouped(self, w: OperationWrapper):
         idx = self.widgets.index(w)
         widgets = w.widgets
-        self.remove_item(w)
+        self.delete_item(w)
         for widget in widgets:
             self.add_item(widget, idx)
             idx += 1
@@ -331,7 +334,7 @@ class OperationWrapper(QWidget):
         # replace the widget with a OperationWrapper, then move the widget into it
         wrapper = OperationWrapper(self.icons, self.cache_handler, parent=self)
         idx = self.widgets.index(widget)
-        self.remove_item(widget)
+        self.delete_item(widget)
         wrapper.add_song(widget.request)
         self.add_item(wrapper, idx)
 
@@ -418,7 +421,7 @@ class OperationWrapper(QWidget):
                     source.clear()
                     source.ungroup_signal.emit()
                 else:
-                    parent.remove_item(source)
+                    parent.delete_item(source)
 
                 self.add_item(self.create_item(request, playable=True), n)
 
